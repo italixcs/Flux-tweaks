@@ -1,0 +1,65 @@
+plugins { id 'fabric-loom' version '1.15.5' }
+
+version = project.mod_version
+group = 'dev.fluxtweaks'
+base { archivesName = 'fluxtweaks' }
+repositories { mavenCentral(); maven { url = 'https://api.modrinth.com/maven' } }
+loom { splitEnvironmentSourceSets(); mods { fluxtweaks { sourceSet sourceSets.main; sourceSet sourceSets.client } } }
+dependencies {
+    minecraft 'com.mojang:minecraft:1.21.11'
+    mappings loom.officialMojangMappings()
+    modImplementation 'net.fabricmc:fabric-loader:0.19.5'
+    modImplementation 'net.fabricmc.fabric-api:fabric-api:0.141.6+1.21.11'
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    productionRuntimeMods 'net.fabricmc.fabric-api:fabric-api:0.141.6+1.21.11'
+    productionRuntimeMods 'net.fabricmc.fabric-api:fabric-client-gametest-api-v1:4.3.5+bfe9fcf43e'
+    if (providers.gradleProperty('sodiumAcceptance').isPresent()) {
+        productionRuntimeMods 'maven.modrinth:sodium:mc1.21.11-0.8.14-fabric'
+    }
+}
+def packagedVersion = project.version.toString()
+processResources { inputs.property 'version', packagedVersion; filesMatching('fabric.mod.json') { expand version: packagedVersion } }
+tasks.withType(JavaCompile).configureEach { options.release = 21; options.encoding = 'UTF-8' }
+java { withSourcesJar(); sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 }
+test { useJUnitPlatform() }
+jar { from('docs/licenses') { into 'META-INF/licenses' } }
+tasks.register('buildNative', Exec) {
+    inputs.files('native/media.cpp', 'native/build.ps1')
+    outputs.file(layout.buildDirectory.file('native/fluxmedia.dll'))
+    commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', file('native/build.ps1').absolutePath, '-JavaHome', System.getProperty('java.home')
+}
+processResources {
+    dependsOn tasks.named('buildNative')
+    from(layout.buildDirectory.file('native/fluxmedia.dll')) { into 'assets/fluxtweaks/native/windows-x64' }
+}
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'fluxtweaks-test'
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = false
+    }
+}
+
+// Test code is a separate mod and is never included in the installable JAR.
+tasks.register('gametestJar', Jar) {
+    from sourceSets.gametest.output
+    archiveClassifier = 'gametest-dev'
+}
+tasks.register('remapGametestJar', net.fabricmc.loom.task.RemapJarTask) {
+    dependsOn tasks.named('gametestJar')
+    inputFile = tasks.named('gametestJar', Jar).flatMap { it.archiveFile }
+    classpath.from sourceSets.gametest.compileClasspath
+    archiveClassifier = 'gametest'
+    addNestedDependencies = false
+}
+tasks.register('runProductionClientGameTest', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+    mods.from tasks.named('remapGametestJar')
+    jvmArgs.add('-Dfabric.client.gametest')
+    programArgs.addAll('--username', 'Player0', '--accessToken', '0')
+    runDir = layout.buildDirectory.dir(providers.gradleProperty('sodiumAcceptance').isPresent() ? 'run/productionSodium' : 'run/productionFabric')
+    useXVFB = false
+}
