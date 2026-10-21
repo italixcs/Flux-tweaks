@@ -39,12 +39,12 @@ final class LowFireAcceptance {
           });
       context.waitFor(mc -> mc.player.isOnFire());
       context.waitTicks(5);
-      Path normal = captureFlames(context, "flux-low-fire-off");
+      Path normal = captureFlames(context, "flux-low-fire-off", 0, .65);
       context.getInput().pressKey(GLFW.GLFW_KEY_F9);
       context.waitTicks(5);
       context.runOnClient(
           mc -> check(FluxTweaks.active(Feature.LOW_FIRE), "Low Fire key did not enable it"));
-      Path low = context.takeScreenshot("flux-low-fire-on");
+      Path low = captureFlames(context, "flux-low-fire-on", .75, 1);
       check(
           world
               .getServer()
@@ -62,7 +62,7 @@ final class LowFireAcceptance {
       context.waitTicks(5);
       context.runOnClient(
           mc -> check(!FluxTweaks.active(Feature.LOW_FIRE), "Low Fire key did not disable it"));
-      Path restored = captureFlames(context, "flux-low-fire-restored");
+      Path restored = captureFlames(context, "flux-low-fire-restored", 0, .65);
       int before = firePixels(normal, 0, .65),
           after = firePixels(low, 0, .65),
           off = firePixels(restored, 0, .65);
@@ -93,13 +93,14 @@ final class LowFireAcceptance {
     }
   }
 
-  private static Path captureFlames(ClientGameTestContext context, String name) {
+  private static Path captureFlames(
+      ClientGameTestContext context, String name, double top, double bottom) {
     Path best = null;
     int most = -1;
-    // Sample the animation so a brief low flame frame cannot hide a restored vanilla overlay.
+    // Sample the animation so a brief low flame frame cannot hide the burning indicator.
     for (int i = 0; i < 4; i++) {
       Path sample = context.takeScreenshot(name + "-sample-" + i);
-      int pixels = firePixels(sample, 0, .65);
+      int pixels = firePixels(sample, top, bottom);
       if (pixels > most) {
         most = pixels;
         best = sample;

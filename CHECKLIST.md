@@ -2,6 +2,14 @@
 
 Implementation complete; acceptance evidence recorded below. Updated 2026-10-21.
 
+## Low Fire — 0.1.3 (2026-10-21)
+
+- [x] Eleventh module in the GUI/search and Minecraft Controls, initially disabled/unbound; saved enabled state and binding.
+- [x] Lowers only first-person fire overlay geometry; leaves world/entity flames, damage, sounds and burning state alone. Disabling restores vanilla overlay height.
+- [x] Older-config migration and enabled-state persistence covered by focused logic checks; thirteen focused JUnit checks pass.
+- [x] Packaged Fabric/Sodium fire captures, normal-height restoration and release archive inspection. See docs/LOW-FIRE-0.1.3.md.
+- [ ] Owner confirmation of the new Low Fire module in their multiplayer profile.
+
 ## Fullbright — 0.1.2 (2026-10-21)
 
 - [x] Added Fullbright to the shared registry, GUI, search, Controls bindings and persistent configuration; disabled and unbound by default.
@@ -41,7 +49,7 @@ The user reported that all nine features work in their installed first build, an
 
 ## Passed evidence
 
-- [x] Twelve focused JUnit checks (including Fullbright migration and persistence): defaults, config roundtrip, camera disarming, malformed/missing settings recovery, corrupt-file preservation, range/clamp validation, clock conversion, shield priority and color interpolation.
+- [x] Thirteen focused JUnit checks (including Fullbright/Low Fire migration and persistence): defaults, config roundtrip, camera disarming, malformed/missing settings recovery, corrupt-file preservation, range/clamp validation, clock conversion, shield priority and color interpolation.
 - [x] Production JAR build/remap on Java 21, including native DLL and font license.
 - [x] Fabric single-player packaged-game smoke checks on Java 21.
 - [x] Fabric + Sodium 0.8.14 single-player packaged-game smoke checks on Java 21.
@@ -55,9 +63,10 @@ The user reported that all nine features work in their installed first build, an
 - [x] Live previous/next and pause/resume requests; changed metadata/playback states observed and initial pause state restored.
 - [x] Repeat failure handling: this Spotify session acknowledged requests without reporting a change; Flux hides its unconfirmed repeat control.
 
+- [x] **Owner confirmed existing features work in multiplayer on 2026-10-21.** This is user-reported gameplay evidence; the automated dedicated-server matrix remains pending with no EULA acceptance set.
+
 ## Still pending
 
-- [x] **Owner confirmed existing features work in multiplayer on 2026-10-21.** This is user-reported gameplay evidence; the automated dedicated-server matrix remains pending with no EULA acceptance set.
 - [ ] Detailed remote-shield/nearby-player jump-circle matrix across server-specific behavior, beyond the owner's general multiplayer confirmation.
 - [ ] Full live matrix of all circle appearances, particle settings/extremes, sustained event/resource stress and GPU/performance measurements.
 - [ ] Independent listening check of server weather sounds and full dimension/death transition matrix; weather hooks were source-audited to affect rendering only.
