@@ -2,14 +2,23 @@ package dev.fluxtweaks.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.fluxtweaks.FluxTweaks;
+import dev.fluxtweaks.feature.Zoom;
+import net.minecraft.client.Camera;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.*;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
+  @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
+  private void flux$zoom(
+      Camera camera, float delta, boolean world, CallbackInfoReturnable<Float> cir) {
+    if (world) cir.setReturnValue(Zoom.fov(cir.getReturnValue()));
+  }
+
   @Redirect(
       method = "renderItemInHand",
       at =

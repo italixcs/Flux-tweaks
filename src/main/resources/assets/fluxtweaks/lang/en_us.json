@@ -11,5 +11,8 @@
   "key.fluxtweaks.freelook": "Freelook",
   "key.fluxtweaks.freecam": "Toggle Freecam",
   "key.fluxtweaks.fullbright": "Toggle Fullbright",
-  "key.fluxtweaks.low_fire": "Toggle Low Fire"
+  "key.fluxtweaks.low_fire": "Toggle Low Fire",
+  "key.fluxtweaks.zoom": "Hold Zoom",
+  "key.fluxtweaks.block_overlay": "Toggle Block Overlay",
+  "key.fluxtweaks.hit_color": "Toggle Hit Color"
 }

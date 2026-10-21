@@ -81,6 +81,9 @@ public final class FluxScreen extends Screen {
       case SPOTIFY -> FluxTweaks.spotify.status();
       case FULLBRIGHT -> "Brightens dark areas on your screen.";
       case LOW_FIRE -> "Lowers burning flames to keep your view clear.";
+      case ZOOM -> "Enable, then hold your key. Scroll to adjust.";
+      case BLOCK_OVERLAY -> "Customizes the block under your crosshair.";
+      case HIT_COLOR -> "Colors damage flashes on bodies and armor.";
       default -> "";
     };
   }

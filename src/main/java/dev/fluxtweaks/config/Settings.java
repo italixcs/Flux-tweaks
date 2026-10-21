@@ -121,6 +121,29 @@ public final class Settings {
             number("sprint", "Sprint Multiplier", 3, 1, 10, .1, "")));
     ALL.put(Feature.FULLBRIGHT, List.of());
     ALL.put(Feature.LOW_FIRE, List.of());
+    ALL.put(
+        Feature.ZOOM,
+        List.of(
+            number("magnification", "Default Magnification", 4, 1, 16, .25, "x"),
+            number("duration", "Transition Duration", 150, 50, 500, 10, "ms")));
+    ALL.put(
+        Feature.BLOCK_OVERLAY,
+        List.of(
+            bool("outline", "Outline", true),
+            color("outlineColor", "Outline Color", 0x9B3DFF),
+            number("outlineOpacity", "Outline Opacity", 100, 0, 100, 1, "%"),
+            number("thickness", "Outline Thickness", 2, 1, 6, .25, "px"),
+            bool("fill", "Fill", true),
+            color("fillColor", "Fill Color", 0x00AFD8),
+            number("fillOpacity", "Fill Opacity", 20, 0, 100, 1, "%")));
+    ALL.put(
+        Feature.HIT_COLOR,
+        List.of(
+            color("color", "Color", 0x9B3DFF),
+            number("opacity", "Opacity", 35, 0, 100, 1, "%"),
+            bool("players", "Players", true),
+            bool("mobs", "Mobs", true),
+            bool("self", "Self", false)));
   }
 
   private Settings() {}

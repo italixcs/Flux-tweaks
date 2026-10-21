@@ -1,15 +1,23 @@
-# Flux Tweaks 0.1.3
+# Flux Tweaks 0.1.4
 
-A client-only Minecraft Java 1.21.11 mod for Windows x64. Includes the original nine features, Fullbright, Low Fire, and the refined 0.1.1 GUI. The owner confirmed the existing features work in multiplayer on 2026-10-21; see [CHECKLIST.md](CHECKLIST.md) and [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md).
+A client-only Minecraft Java 1.21.11 mod for Windows x64. Includes 14 modules: the original nine features, Fullbright, Low Fire, Zoom, Block Overlay and Hit Color, with the refined GUI. The owner confirmed the existing features work in multiplayer on 2026-10-21; see [CHECKLIST.md](CHECKLIST.md) and [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md).
 
 ## Install
 
 1. Use a Minecraft **1.21.11 Fabric** profile, Java **21**, Fabric Loader **0.19.5 or newer**, and Fabric API **0.141.6+1.21.11**.
-2. Put **fluxtweaks-0.1.3.jar** in that profile's `mods` folder. The Spotify bridge is bundled; no Spotify credentials or web login are needed.
+2. Put **fluxtweaks-0.1.4.jar** in that profile's `mods` folder. The Spotify bridge is bundled; no Spotify credentials or web login are needed.
 3. Optionally add **Sodium 0.8.14 for 1.21.11 Fabric**, which was checked alongside this build.
 4. Launch the game, join a world, and press **Right Shift**. All features start disabled.
 
 The server does not need this mod. The supported rendering configurations are Fabric alone and Fabric + Sodium. Iris/shader packs and other rendering modifications have not been checked.
+
+## New modules in 0.1.4
+
+- **Zoom:** enable the module, assign a key, then hold it. Scroll while held to adjust magnification without changing hotbar slots. Each activation starts at the saved default (4x); transition duration defaults to 150 ms. Sensitivity scales automatically; FOV and sensitivity options are never overwritten. Opening screens, focus loss, death and world changes cancel zoom and require a fresh press.
+- **Block Overlay:** independent outline/fill switches, colors and opacity; adjustable 1–6 px thickness. Follows the actual targeted selection shape and respects terrain depth. Defaults to a purple outline and cyan fill at 20% opacity. Both parts off hides the selection; disabling the module restores vanilla.
+- **Hit Color:** replaces normal hurt/death flashes on textured bodies and armor, including trims. Default purple at 35% opacity; Players/Mobs on, Self off. Held items and enchantment glint keep their existing appearance.
+
+All three start disabled and unbound. Existing version-1 settings remain compatible. See [the approved specification and acceptance record](docs/MODULES-0.1.4.md).
 
 ## Low Fire added in 0.1.3
 
@@ -32,7 +40,7 @@ Replace the old mod JAR with the new one. Your existing version-1 configuration 
 ## Controls and settings
 
 - **Right Shift:** open/close Flux Tweaks. Rebind under Minecraft Controls → Flux Tweaks.
-- Each feature has an Enabled switch and keybind row. Click the row and press a keyboard or mouse button; **Delete/Backspace** clears it and **Esc** cancels. Feature binds also appear in Minecraft Controls and initially remain unbound.
+- Each feature has an Enabled switch and keybind row. Click the row and press a keyboard or mouse button; **Delete/Backspace** clears it and **Esc** cancels. Feature binds also appear in Minecraft Controls and initially remain unbound. **Zoom is a hold binding:** its Enabled switch arms it; the key temporarily zooms. Other module keys toggle, except Freelook when configured to Hold.
 - Drag a panel's heading to move it. Select a feature to open its settings; scroll the feature list or long settings. Search filters the flat list.
 - Drag sliders, or click their displayed value to type. Range values accept `min, max`. Colors offer a picker and six-digit hex entry.
 - **Theme:** primary/secondary/background colors and background transparency; **Reset Layout** restores both panels and HUD placement. **Home** also resets layout.
@@ -53,6 +61,9 @@ The world keeps running in Flux screens. Gameplay movement and attack input are 
 | Ambience | Triangles/Cubes with color/count/size/speed/distance; fixed time presets/custom ticks or PC-clock Real Time; visual Clear/Rain/Thunder/Snow; Vanilla/Removed/Custom fog, color/range and Sync with Sky. Server time/weather data and weather sounds are preserved. |
 | Shield Status | Ready/Using/Disabled/Low Durability surface colors, threshold, smooth transitions and Only Self. Priority: Disabled → Low Durability → Using → Ready. Default low threshold 20%. |
 | Freelook | Independent third-person camera, Toggle/Hold; preserves player facing and movement and restores the previous perspective. |
+| Zoom | Hold-to-zoom, 1–16x default strength, 50–500 ms smooth transition, temporary scroll adjustment in 1.2x steps, scaled sensitivity and lifecycle cleanup. Hands/HUD stay at normal size. |
+| Block Overlay | Independent outline/fill switches, color and opacity; 1–6 px outline width. Actual targeted block shape, depth tested, restores vanilla when disabled. |
+| Hit Color | Configurable damage color/opacity on bodies and worn armor/trims. Separate Players/Mobs/Self filters, vanilla hurt/death timing, original textures/dye/glint and held-item appearance preserved. |
 | Low Fire | Lowers the first-person burning overlay; Enabled switch and assignable keybind, initially disabled/unbound. Preserves a visible fire warning and restores vanilla height when disabled. |
 | Fullbright | Brightens dark areas using the client lightmap; Enabled switch and assignable keybind, initially disabled/unbound. Restores normal lighting when disabled. |
 | Freecam | Detached camera, speed/sprint multiplier, WASD, jump/sneak vertical movement, block passage, visible real player body. Player movement and interactions are suspended; terrain must already be loaded. |
@@ -75,9 +86,9 @@ Use JDK 21 and Visual Studio C++ Build Tools with the Windows SDK (C++/WinRT). N
 .\gradlew.bat runProductionClientGameTest -PsodiumAcceptance --console plain
 ```
 
-`build` compiles Java with `--release 21`, builds the x64 native bridge with the static C++ runtime, runs focused JUnit checks, and produces `build/libs/fluxtweaks-0.1.3.jar`. `runProductionClientGameTest` runs the packaged intermediary-mapped mod in an isolated single-player game. Test worlds and screenshots stay under `build/run/productionFabric` or `build/run/productionSodium`. The test mod is separate and is never included in the installation JAR. The normal development game check is also available as `runClientGameTest`.
+`build` compiles Java with `--release 21`, builds the x64 native bridge with the static C++ runtime, runs focused JUnit checks, and produces `build/libs/fluxtweaks-0.1.4.jar`. `runProductionClientGameTest` runs the packaged intermediary-mapped mod in an isolated single-player game. Test worlds and screenshots stay under `build/run/productionFabric` or `build/run/productionSodium`. The test mod is separate and is never included in the installation JAR. The normal development game check is also available as `runClientGameTest`.
 
-The owner confirmed multiplayer gameplay works in 0.1.2. Automated dedicated-server testing and EULA acceptance remain **disabled**; no multiplayer test server was started. Low Fire requires confirmation in the owner's multiplayer profile.
+The owner confirmed multiplayer gameplay works in 0.1.2. Automated dedicated-server testing and EULA acceptance remain **disabled**; no multiplayer test server was started. Low Fire and the three 0.1.4 additions require confirmation in the owner's multiplayer profile.
 
 `tools/WindowsMediaAcceptance.java` contains the explicitly authorized live media check. It changes playback and must only be run when the user permits that; it restores the initial pause/repeat state. The procedural image generators require Python + Pillow for asset regeneration only; the mod does not use Python.
 

@@ -25,6 +25,9 @@ class ConfigStoreTest {
     config.module(Feature.HAND_CHAMS).enabled = true;
     config.module(Feature.FULLBRIGHT).enabled = true;
     config.module(Feature.LOW_FIRE).enabled = true;
+    config.module(Feature.ZOOM).enabled = true;
+    config.module(Feature.BLOCK_OVERLAY).enabled = true;
+    config.module(Feature.HIT_COLOR).enabled = true;
     config.module(Feature.FREELOOK).enabled = true;
     config.module(Feature.FREECAM).enabled = true;
     config.theme.primary = 0x123456;
@@ -35,6 +38,9 @@ class ConfigStoreTest {
     assertTrue(loaded.enabled(Feature.HAND_CHAMS));
     assertTrue(loaded.enabled(Feature.FULLBRIGHT));
     assertTrue(loaded.enabled(Feature.LOW_FIRE));
+    assertTrue(loaded.enabled(Feature.ZOOM));
+    assertTrue(loaded.enabled(Feature.BLOCK_OVERLAY));
+    assertTrue(loaded.enabled(Feature.HIT_COLOR));
     assertFalse(loaded.enabled(Feature.FREELOOK));
     assertFalse(loaded.enabled(Feature.FREECAM));
     assertEquals(0x123456, loaded.theme.primary);
@@ -65,6 +71,26 @@ class ConfigStoreTest {
     assertFalse(config.enabled(Feature.LOW_FIRE));
     assertTrue(config.enabled(Feature.FULLBRIGHT));
     assertTrue(Settings.of(Feature.LOW_FIRE).isEmpty());
+  }
+
+  @Test
+  void olderConfigAdds014ModulesAndAgreedDefaults() {
+    FluxConfig config = new FluxConfig();
+    for (var feature : new Feature[] {Feature.ZOOM, Feature.BLOCK_OVERLAY, Feature.HIT_COLOR})
+      config.modules.remove(feature.id);
+    config.module(Feature.FULLBRIGHT).enabled = true;
+    config.sanitize();
+    for (var feature : new Feature[] {Feature.ZOOM, Feature.BLOCK_OVERLAY, Feature.HIT_COLOR})
+      assertFalse(config.enabled(feature));
+    assertTrue(config.enabled(Feature.FULLBRIGHT));
+    assertEquals(4, config.number(Feature.ZOOM, "magnification"));
+    assertEquals(150, config.number(Feature.ZOOM, "duration"));
+    assertEquals(20, config.number(Feature.BLOCK_OVERLAY, "fillOpacity"));
+    assertEquals(35, config.number(Feature.HIT_COLOR, "opacity"));
+    assertTrue(config.bool(Feature.HIT_COLOR, "players"));
+    assertTrue(config.bool(Feature.HIT_COLOR, "mobs"));
+    assertFalse(config.bool(Feature.HIT_COLOR, "self"));
+    assertEquals(1, config.schemaVersion);
   }
 
   @Test

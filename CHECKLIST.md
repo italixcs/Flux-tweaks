@@ -2,6 +2,18 @@
 
 Implementation complete; acceptance evidence recorded below. Updated 2026-10-21.
 
+## Zoom, Block Overlay and Hit Color — 0.1.4 (2026-10-21)
+
+- [x] Three new registry/settings/GUI/search/Controls modules, initially disabled/unbound; version-1 configuration migration and saved preferences.
+- [x] Smooth hold Zoom with 1.2x wheel steps, default reset, scaled sensitivity and native world-FOV composition; no saved-option changes.
+- [x] Screen/focus/death/world cleanup and fresh-press gate; camera mode and spyglass composition.
+- [x] Real target selection shapes with independent outline/fill controls, native line width and depth-tested external voxel faces.
+- [x] Hit Color targets Players/Mobs/Self, separate overlay row, original body/armor/trim textures and dye, preserved glint and held items.
+- [x] Cached armor variants and resource reload cleanup; live color/opacity updates without per-frame texture uploads.
+- [x] Eighteen focused logic/configuration checks pass.
+- [x] Final packaged Fabric/Sodium checks and JAR/source inspection passed; see docs/MODULES-0.1.4.md.
+- [ ] New modules' gameplay acceptance in the owner's multiplayer profile.
+
 ## Low Fire — 0.1.3 (2026-10-21)
 
 - [x] Eleventh module in the GUI/search and Minecraft Controls, initially disabled/unbound; saved enabled state and binding.
@@ -49,7 +61,7 @@ The user reported that all nine features work in their installed first build, an
 
 ## Passed evidence
 
-- [x] Thirteen focused JUnit checks (including Fullbright/Low Fire migration and persistence): defaults, config roundtrip, camera disarming, malformed/missing settings recovery, corrupt-file preservation, range/clamp validation, clock conversion, shield priority and color interpolation.
+- [x] Eighteen focused JUnit checks (including Zoom timing/FOV/scroll/cancellation and module migration/persistence): defaults, config roundtrip, camera disarming, malformed/missing settings recovery, corrupt-file preservation, range/clamp validation, clock conversion, shield priority and color interpolation.
 - [x] Production JAR build/remap on Java 21, including native DLL and font license.
 - [x] Fabric single-player packaged-game smoke checks on Java 21.
 - [x] Fabric + Sodium 0.8.14 single-player packaged-game smoke checks on Java 21.

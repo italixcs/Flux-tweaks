@@ -13,11 +13,15 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.*;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.*;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.*;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import org.lwjgl.glfw.GLFW;
@@ -84,6 +88,10 @@ public final class FluxTweaks implements ClientModInitializer {
     spotify = new SpotifyService();
     hud = new SpotifyHud();
     chams = new HandChams();
+    WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register(BlockOverlay::render);
+    ResourceLoader.get(PackType.CLIENT_RESOURCES)
+        .registerReloader(
+            id("hit_color"), (ResourceManagerReloadListener) manager -> HitColor.clearCache());
     ClientTickEvents.START_CLIENT_TICK.register(
         mc -> {
           if (mc.level != lastLevel) {
@@ -112,6 +120,7 @@ public final class FluxTweaks implements ClientModInitializer {
           hud.close();
           chams.close();
           effects.close();
+          HitColor.clearCache();
         });
     LOGGER.info(
         "Flux Tweaks initialized: Minecraft 1.21.11, all modules configurable with Right Shift");
@@ -127,6 +136,7 @@ public final class FluxTweaks implements ClientModInitializer {
       KeyMapping binding = keys.get(f);
       boolean pressed = false;
       while (binding.consumeClick()) pressed = true;
+      if (f == Feature.ZOOM) continue;
       boolean hold = f == Feature.FREELOOK && config.text(f, "activation").equals("Hold");
       if (hold) {
         boolean wanted = mc.screen == null && binding.isDown() && mc.player != null;
@@ -134,6 +144,7 @@ public final class FluxTweaks implements ClientModInitializer {
       } else if (pressed && mc.screen == null) setEnabled(f, !active(f));
     }
     cameras.tick();
+    Zoom.refresh();
     effects.tick();
     shields.tick();
     spotify.enabled(active(Feature.SPOTIFY));

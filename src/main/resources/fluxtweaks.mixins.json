@@ -21,7 +21,13 @@
     "FontAccess",
     "UiGlyphMixin",
     "FullbrightMixin",
-    "LowFireMixin"
+    "LowFireMixin",
+    "VoxelShapeAccess",
+    "HitStateMixin",
+    "HitColorMixin",
+    "HitOverlayMixin",
+    "HitArmorMixin",
+    "ZoomKeyboardMixin"
   ],
   "injectors": {
     "defaultRequire": 1

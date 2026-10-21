@@ -11,7 +11,10 @@ public enum Feature {
   FREELOOK("freelook", "Freelook"),
   FREECAM("freecam", "Freecam"),
   FULLBRIGHT("fullbright", "Fullbright"),
-  LOW_FIRE("low_fire", "Low Fire");
+  LOW_FIRE("low_fire", "Low Fire"),
+  ZOOM("zoom", "Zoom"),
+  BLOCK_OVERLAY("block_overlay", "Block Overlay"),
+  HIT_COLOR("hit_color", "Hit Color");
   public final String id, title;
 
   Feature(String id, String title) {

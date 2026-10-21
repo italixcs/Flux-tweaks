@@ -69,3 +69,7 @@ The user requested a Fullbright feature after the GUI refinement. Added as the t
 ## Approved addition — Low Fire (2026-10-21)
 
 The owner confirmed the current features also work in multiplayer and requested a Low Fire module to reduce screen obstruction while burning. Added as the eleventh module with the standard Enabled switch and assignable keybind, disabled and unbound by default. Lowers only first-person fire overlay geometry, retains a burning indicator and restores vanilla height when disabled. Damage, world fire and third-person flames are unchanged. The prior decision to leave automated dedicated-server testing/EULA acceptance disabled remains in place.
+
+## Approved additions — 0.1.4 (2026-10-21)
+
+Implement Zoom, Block Overlay and Hit Color as approved in docs/MODULES-0.1.4.md. Zoom uses a separate hold binding while its Enabled setting arms the module. Block Overlay follows the target selection shape with independent outline/fill controls and depth testing. Hit Color filters Players/Mobs/Self and tints native hurt/death flashes on bodies and worn armor/trims while preserving held items and glint. All three start disabled/unbound; configuration schema remains version 1. The target/toolchain and no-new-dependency requirement remain unchanged. Package the JAR and complete source with Fabric/Sodium checks and explicit remaining multiplayer acceptance.
