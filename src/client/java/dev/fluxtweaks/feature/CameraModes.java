@@ -9,17 +9,19 @@ import net.minecraft.world.phys.Vec3;
 
 public final class CameraModes {
   private CameraType previousPerspective;
+  private Feature current;
   private Vec3 position = Vec3.ZERO, previous = Vec3.ZERO;
   private float yaw, pitch;
 
   public boolean change(Feature feature, boolean enabled) {
     Minecraft mc = Minecraft.getInstance();
     if (enabled) {
+      if (!FluxTweaks.config.enabled(feature)) return false;
       if (mc.player == null || mc.level == null || !mc.player.isAlive()) {
         FluxTweaks.message = "Join a world before enabling camera features";
         return false;
       }
-      if (FluxTweaks.active(feature)) return true;
+      if (current == feature) return true;
       reset();
       previousPerspective = mc.options.getCameraType();
       yaw = mc.player.getYRot();
@@ -27,7 +29,9 @@ public final class CameraModes {
       position = previous = mc.player.getEyePosition();
       mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
       if (feature == Feature.FREECAM) mc.player.stopUsingItem();
-    } else if (FluxTweaks.active(feature)) reset();
+      current = feature;
+      FluxTweaks.actionChanged(feature, true);
+    } else if (current == feature) reset();
     return true;
   }
 
@@ -36,12 +40,17 @@ public final class CameraModes {
       Minecraft.getInstance().options.setCameraType(previousPerspective);
       previousPerspective = null;
     }
-    FluxTweaks.config.module(Feature.FREELOOK).enabled = false;
-    FluxTweaks.config.module(Feature.FREECAM).enabled = false;
+    Feature old = current;
+    current = null;
+    if (old != null) FluxTweaks.actionChanged(old, false);
+  }
+
+  public boolean isActive(Feature feature) {
+    return current == feature;
   }
 
   public boolean active() {
-    return FluxTweaks.active(Feature.FREECAM) || FluxTweaks.active(Feature.FREELOOK);
+    return current != null;
   }
 
   public void turn(double dx, double dy) {
@@ -56,7 +65,7 @@ public final class CameraModes {
       return;
     }
     previous = position;
-    if (!FluxTweaks.active(Feature.FREECAM) || mc.screen != null) return;
+    if (!FluxTweaks.active(Feature.FREECAM) || mc.screen != null || !mc.isWindowActive()) return;
     double forward = (mc.options.keyUp.isDown() ? 1 : 0) - (mc.options.keyDown.isDown() ? 1 : 0);
     double right = (mc.options.keyRight.isDown() ? 1 : 0) - (mc.options.keyLeft.isDown() ? 1 : 0);
     double up = (mc.options.keyJump.isDown() ? 1 : 0) - (mc.options.keyShift.isDown() ? 1 : 0);

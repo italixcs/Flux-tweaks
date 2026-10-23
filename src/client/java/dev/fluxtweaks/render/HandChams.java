@@ -111,6 +111,9 @@ public final class HandChams implements AutoCloseable {
       captureTarget = null;
       shieldOnly = false;
       FluxTweaks.config.module(Feature.HAND_CHAMS).enabled = false;
+      if (FluxTweaks.notifications != null)
+        FluxTweaks.notifications.push(
+            Feature.HAND_CHAMS, dev.fluxtweaks.gui.NotificationQueue.State.DISABLED);
       FluxTweaks.changed();
       hands.blitAndBlendToTexture(mc.getMainRenderTarget().getColorTextureView());
       FluxTweaks.message = "Hand Chams stopped after a rendering error";

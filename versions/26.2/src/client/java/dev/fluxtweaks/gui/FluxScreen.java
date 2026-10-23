@@ -35,7 +35,7 @@ public final class FluxScreen extends Screen {
   private int choiceFocus, savedFocus;
   private boolean closing;
   private float screenOffset;
-  private boolean theme, settingsVisible = true, binding;
+  private boolean theme, settingsVisible = true, binding, bindingAction;
   private EditBox search, editor;
   private Consumer<String> editCommit;
   private IntConsumer colorCommit;
@@ -157,7 +157,8 @@ public final class FluxScreen extends Screen {
     Ui.surface(g, nx, ny, 190, navHeight);
     Ui.rounded(g, nx + 16, ny + 17, 4, 20, 2, Ui.primary());
     Ui.titleRow(g, "Flux Tweaks", nx + 28, ny + 17, 20, Ui.WHITE);
-    long enabled = Arrays.stream(Feature.values()).filter(FluxTweaks::active).count();
+    long enabled =
+        Arrays.stream(Feature.values()).filter(f -> FluxTweaks.config.enabled(f)).count();
     Ui.text(
         g,
         Feature.values().length + " features · " + enabled + " enabled",
@@ -212,13 +213,17 @@ public final class FluxScreen extends Screen {
                 ? Ui.alpha(FluxTweaks.config.theme.primary, .18f)
                 : Ui.alpha(0xffffff, hover * .065f));
         if (current) Ui.rounded(g, nx + 10, row + 8, 3, 14, 1.5f, Ui.primary());
-        Ui.row(g, f.title, nx + 21, row, 30, current ? Ui.WHITE : Ui.MUTED);
-        Ui.row(
+        ModuleIcons.draw(g, f, nx + 20, row + 8, 14, current ? Ui.WHITE : Ui.MUTED);
+        Ui.row(g, Ui.fit(f.title, 100), nx + 42, row, 30, current ? Ui.WHITE : Ui.MUTED);
+        String state =
+            !FluxTweaks.config.enabled(f)
+                ? "Off"
+                : f.hasAction() ? (FluxTweaks.active(f) ? "Active" : "Ready") : "On";
+        Ui.right(
             g,
-            FluxTweaks.active(f) ? "On" : "Off",
-            nx + 152,
-            row,
-            30,
+            state,
+            nx + 176,
+            Ui.textY(row, 30),
             FluxTweaks.active(f) ? Ui.secondary() : Ui.MUTED);
         zone(
             "Configure " + f.title,
@@ -299,6 +304,7 @@ public final class FluxScreen extends Screen {
       renderPopup(g, mx, my, delta);
     }
     g.pose().popMatrix();
+    if (FluxTweaks.notifications != null) FluxTweaks.notifications.render(g, false);
   }
 
   private void select(Feature f) {
@@ -315,7 +321,9 @@ public final class FluxScreen extends Screen {
 
   private void renderSettings(GuiGraphicsExtractor g, int x, int y, int mx, int my, float delta) {
     Ui.surface(g, x, y, 320, settingsHeight);
-    Ui.titleRow(g, theme ? "Make it yours" : selected.title, x + 20, y + 17, 22, Ui.WHITE);
+    if (!theme) ModuleIcons.draw(g, selected, x + 20, y + 21, 15, Ui.secondary());
+    Ui.titleRow(
+        g, theme ? "Make it yours" : selected.title, x + (theme ? 20 : 44), y + 17, 22, Ui.WHITE);
     Ui.text(
         g,
         Ui.fit(theme ? "Colors, scale and your workspace." : featureHint(), 278),
@@ -339,7 +347,7 @@ public final class FluxScreen extends Screen {
     zone("Close settings panel", x + 280, y + 12, 28, 28, () -> settingsVisible = false);
     int top = y + 76;
     if (!theme) {
-      boolean on = FluxTweaks.active(selected);
+      boolean on = FluxTweaks.config.enabled(selected);
       Ui.rounded(g, x + 16, top, 288, 38, 8, Ui.inset());
       Ui.row(g, on ? "Enabled" : "Disabled", x + 28, top, 38, Ui.WHITE);
       Ui.toggle(g, x + 265, top + 12, motion.value(selected.id + ".enabled", on ? 1 : 0));
@@ -349,26 +357,21 @@ public final class FluxScreen extends Screen {
           top,
           288,
           38,
-          () -> FluxTweaks.setEnabled(selected, !FluxTweaks.active(selected)));
+          () -> FluxTweaks.setEnabled(selected, !FluxTweaks.config.enabled(selected)));
       top += 46;
-      Ui.row(g, "Keybind", x + 20, top, 30, Ui.MUTED);
-      String key =
-          binding
-              ? "Press a key…"
-              : FluxTweaks.keys.get(selected).getTranslatedKeyMessage().getString();
-      Ui.rounded(g, x + 148, top, 156, 30, 7, Ui.inset());
-      Ui.outline(g, x + 148, top, 156, 30, 7, binding ? Ui.secondary() : 0x20FFFFFF);
-      Ui.right(g, Ui.fit(key, 136), x + 294, top + 10, binding ? Ui.secondary() : Ui.WHITE);
-      zone(
-          "Set " + selected.title + " keybind",
-          x + 148,
-          top,
-          156,
-          30,
-          () -> {
-            binding = true;
-            search.setFocused(false);
-          });
+      if (selected.hasAction() && on) {
+        Ui.right(
+            g,
+            FluxTweaks.active(selected) ? "Active" : "Ready",
+            x + 255,
+            Ui.textY(y + 76, 38),
+            FluxTweaks.active(selected) ? Ui.secondary() : Ui.MUTED);
+      }
+      renderKey(g, x, top, false);
+      if (selected.hasAction()) {
+        top += 38;
+        renderKey(g, x, top, true);
+      }
       top += 48;
     }
     contentTop = top;
@@ -395,6 +398,31 @@ public final class FluxScreen extends Screen {
       int offset = (int) ((track - thumb) * scroll / (double) Math.max(1, total - track));
       Ui.rounded(g, x + 311, contentTop + offset, 3, thumb, 1.5f, Ui.alpha(0xffffff, .4f));
     }
+  }
+
+  private void renderKey(GuiGraphicsExtractor g, int x, int top, boolean action) {
+    var keyMapping = action ? FluxTweaks.keys.get(selected) : FluxTweaks.enableKeys.get(selected);
+    boolean waiting = binding && bindingAction == action;
+    Ui.row(g, action ? "Action Key" : "Enable Key", x + 20, top, 30, Ui.MUTED);
+    String key = waiting ? "Press a key…" : keyMapping.getTranslatedKeyMessage().getString();
+    Ui.rounded(g, x + 148, top, 156, 30, 7, Ui.inset());
+    Ui.outline(g, x + 148, top, 156, 30, 7, waiting ? Ui.secondary() : 0x20FFFFFF);
+    Ui.right(g, Ui.fit(key, 136), x + 294, Ui.textY(top, 30), waiting ? Ui.secondary() : Ui.WHITE);
+    String label =
+        selected.hasAction()
+            ? "Set " + selected.title + (action ? " Action key" : " Enable key")
+            : "Set " + selected.title + " keybind";
+    zone(
+        label,
+        x + 148,
+        top,
+        156,
+        30,
+        () -> {
+          binding = true;
+          bindingAction = action;
+          search.setFocused(false);
+        });
   }
 
   private List<Entry> entries() {
@@ -441,6 +469,14 @@ public final class FluxScreen extends Screen {
               () -> new JsonPrimitive(c.theme.reducedMotion),
               v -> {
                 c.theme.reducedMotion = v.getAsBoolean();
+                FluxTweaks.changed();
+              }),
+          new Entry(
+              Setting.bool("notifications", "Module Notifications", true),
+              () -> new JsonPrimitive(c.notifications.enabled),
+              v -> {
+                c.notifications.enabled = v.getAsBoolean();
+                if (!c.notifications.enabled) FluxTweaks.notifications.clear();
                 FluxTweaks.changed();
               }),
           new Entry(
@@ -720,6 +756,8 @@ public final class FluxScreen extends Screen {
     p.settingsY = 16;
     p.hudX = .03;
     p.hudY = .78;
+    FluxTweaks.config.notifications.x = .66;
+    FluxTweaks.config.notifications.y = .06;
     clampPanels();
     FluxTweaks.changed();
   }
@@ -885,7 +923,8 @@ public final class FluxScreen extends Screen {
   }
 
   private void bind(InputConstants.Key key) {
-    FluxTweaks.keys.get(selected).setKey(key);
+    (bindingAction ? FluxTweaks.keys.get(selected) : FluxTweaks.enableKeys.get(selected))
+        .setKey(key);
     KeyMapping.resetMapping();
     minecraft.options.save();
     binding = false;

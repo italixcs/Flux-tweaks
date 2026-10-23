@@ -140,6 +140,13 @@ final class ModulesAcceptance {
           FluxTweaks.setEnabled(Feature.ZOOM, true);
         });
     ctx.waitTicks(2);
+    ctx.runOnClient(
+        mc -> {
+          check(
+              FluxTweaks.config.enabled(Feature.ZOOM) && !FluxTweaks.active(Feature.ZOOM),
+              "Enabling Zoom activated it");
+          FluxTweaks.notifications.clear();
+        });
     float original = ctx.computeOnClient(mc -> fov(mc, true));
     float hands = ctx.computeOnClient(mc -> fov(mc, false));
     ctx.takeScreenshot("flux-014-zoom-off");
@@ -150,6 +157,10 @@ final class ModulesAcceptance {
           check(
               Zoom.held() && FluxTweaks.active(Feature.ZOOM),
               "Zoom key changed Enabled instead of holding zoom");
+          check(
+              FluxTweaks.notifications.queue.visible().getLast().state()
+                  == dev.fluxtweaks.gui.NotificationQueue.State.ACTIVATED,
+              "Zoom activation notification missing");
           check(fov(mc, true) < original / 3, "World FOV did not zoom");
           check(fov(mc, false) == hands, "Zoom changed hand FOV");
           check(Math.abs(Zoom.sensitivity() - .25) < .001, "Zoom sensitivity not scaled");
@@ -193,7 +204,11 @@ final class ModulesAcceptance {
     ctx.getInput().releaseKey(GLFW.GLFW_KEY_F10);
     ctx.waitTicks(2);
     for (var camera : List.of(Feature.FREELOOK, Feature.FREECAM)) {
-      ctx.runOnClient(mc -> FluxTweaks.setEnabled(camera, true));
+      ctx.runOnClient(
+          mc -> {
+            FluxTweaks.setEnabled(camera, true);
+            FluxTweaks.setActive(camera, true);
+          });
       ctx.getInput().holdKey(GLFW.GLFW_KEY_F10);
       ctx.waitTicks(5);
       ctx.runOnClient(mc -> check(Zoom.held(), "Zoom did not work with " + camera.title));

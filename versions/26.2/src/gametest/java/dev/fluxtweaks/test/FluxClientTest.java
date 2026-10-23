@@ -25,6 +25,7 @@ public final class FluxClientTest implements FabricClientGameTest {
         mc -> {
           FluxTweaks.config = new FluxConfig();
           FluxTweaks.message = "";
+          FluxTweaks.notifications.clear();
           mc.options.guiScale().set(2);
           mc.resizeGui();
         });
@@ -53,6 +54,7 @@ public final class FluxClientTest implements FabricClientGameTest {
         });
     try (TestSingleplayerContext world = context.worldBuilder().create()) {
       world.getConnection().waitForChunksRender();
+      ModuleControlsAcceptance.run(context);
       FullbrightAcceptance.run(context, world);
       LowFireAcceptance.run(context, world);
       ModulesAcceptance.run(context, world);
@@ -185,7 +187,11 @@ public final class FluxClientTest implements FabricClientGameTest {
                     == FluxTweaks.config.color(Feature.SHIELD_STATUS, "disabled"),
                 "Exact own shield cooldown did not select disabled color");
           });
-      context.runOnClient(mc -> FluxTweaks.setEnabled(Feature.FREECAM, true));
+      context.runOnClient(
+          mc -> {
+            FluxTweaks.setEnabled(Feature.FREECAM, true);
+            FluxTweaks.setActive(Feature.FREECAM, true);
+          });
     }
     context.waitTicks(3);
     context.runOnClient(
@@ -304,6 +310,7 @@ public final class FluxClientTest implements FabricClientGameTest {
           FluxTweaks.keys
               .get(Feature.HAND_CHAMS)
               .setKey(com.mojang.blaze3d.platform.InputConstants.UNKNOWN);
+          FluxTweaks.setEnabled(Feature.FREELOOK, true);
           FluxTweaks.config.set(Feature.FREELOOK, "activation", new JsonPrimitive("Hold"));
           FluxTweaks.keys
               .get(Feature.FREELOOK)
@@ -327,11 +334,13 @@ public final class FluxClientTest implements FabricClientGameTest {
               .setKey(com.mojang.blaze3d.platform.InputConstants.UNKNOWN);
           KeyMapping.resetMapping();
         });
+    context.waitTicks(3); // Let the new action mode/binding cancel the previous input state.
     CameraType original = context.computeOnClient(mc -> mc.options.getCameraType());
     float facing = context.computeOnClient(mc -> mc.player.getYRot());
     context.runOnClient(
         mc -> {
           FluxTweaks.setEnabled(Feature.FREELOOK, true);
+          FluxTweaks.setActive(Feature.FREELOOK, true);
           FluxTweaks.cameras.turn(400, 120);
           check(mc.player.getYRot() == facing, "Freelook changed player facing");
         });
@@ -344,6 +353,7 @@ public final class FluxClientTest implements FabricClientGameTest {
           FluxTweaks.setEnabled(Feature.FREELOOK, false);
           check(mc.options.getCameraType() == original, "Freelook did not restore perspective");
           FluxTweaks.setEnabled(Feature.FREECAM, true);
+          FluxTweaks.setActive(Feature.FREECAM, true);
         });
     Vec3 body = context.computeOnClient(mc -> mc.player.position());
     Vec3 camera = context.computeOnClient(mc -> mc.gameRenderer.mainCamera().position());
@@ -357,6 +367,7 @@ public final class FluxClientTest implements FabricClientGameTest {
               "Freecam camera did not move");
           check(mc.player.getYRot() == facing, "Freecam changed player facing");
           FluxTweaks.setEnabled(Feature.FREELOOK, true);
+          FluxTweaks.setActive(Feature.FREELOOK, true);
           check(!FluxTweaks.active(Feature.FREECAM), "Camera modes are not mutually exclusive");
           FluxTweaks.setEnabled(Feature.FREELOOK, false);
           check(
@@ -376,6 +387,7 @@ public final class FluxClientTest implements FabricClientGameTest {
               Files.copy(Objects.requireNonNull(stream), good, StandardCopyOption.REPLACE_EXISTING);
             }
             FluxTweaks.message = "";
+            FluxTweaks.notifications.clear();
             FluxTweaks.effects.importPng(good);
           } catch (Exception ex) {
             throw new AssertionError(ex);
@@ -388,6 +400,7 @@ public final class FluxClientTest implements FabricClientGameTest {
             Path bad = FluxTweaks.dataDirectory().resolve("test-invalid.png");
             Files.writeString(bad, "invalid image");
             FluxTweaks.message = "";
+            FluxTweaks.notifications.clear();
             FluxTweaks.effects.importPng(bad);
           } catch (Exception ex) {
             throw new AssertionError(ex);

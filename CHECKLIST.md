@@ -2,6 +2,19 @@
 
 Implementation complete; acceptance evidence recorded below. Updated 2026-10-23.
 
+## Icons, module actions and notification HUD — 0.2.4 (2026-10-23)
+
+- [x] Shared smooth icons for all fourteen modules; names remain visible.
+- [x] Separate Enable/Action binds for cameras/Zoom; existing binds migrate as Action, new Enable binds unbound; continuous module binds retained.
+- [x] Saved availability and transient action state; Ready/Active display, camera mutual exclusion, hold/toggle and fresh-key cancellation.
+- [x] Silent themed notification cards for actual Enabled/Disabled/Activated/Deactivated transitions; bounded/expiring queue, cubic easing and Reduced Motion.
+- [x] HUD Editor selects, drags, scales, nudges and resets Notifications independently from Spotify; preview and schema-1 persistence; Theme notification toggle.
+- [x] 52 logic cases pass on Java 21 and Java 25; packaged Fabric runs on both versions and 1.21.11 Sodium pass.
+- [x] Final 26.2 Sodium/Iris production runs pass; both 0.2.4 JARs, complete source and checksum manifest verified.
+- [ ] Owner visual/multiplayer/Lunar acceptance of these additions; shader packs and sustained performance remain unverified.
+
+See [design, migration, screenshots and evidence](docs/MODULE-CONTROLS-024.md). Dedicated-server testing remains disabled.
+
 ## Minecraft 26.2 / Lunar-Iris crash — 0.2.3 (2026-10-23)
 
 - [x] Context7 and official Lunar custom-mod guides researched; exact local crash reports identify conflicting Flux/Iris hand-render redirects.

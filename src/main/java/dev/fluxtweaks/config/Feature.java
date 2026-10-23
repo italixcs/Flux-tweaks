@@ -22,6 +22,10 @@ public enum Feature {
     this.title = title;
   }
 
+  public boolean hasAction() {
+    return camera() || this == ZOOM;
+  }
+
   public boolean camera() {
     return this == FREELOOK || this == FREECAM;
   }

@@ -31,6 +31,9 @@ public final class FluxTweaks implements ClientModInitializer {
   public static final Logger LOGGER = LoggerFactory.getLogger("Flux Tweaks");
   public static FluxConfig config = new FluxConfig();
   public static final Map<Feature, KeyMapping> keys = new EnumMap<>(Feature.class);
+  public static final Map<Feature, KeyMapping> enableKeys = new EnumMap<>(Feature.class);
+  private static final Map<Feature, ActionGate> actionGates = new EnumMap<>(Feature.class);
+  private static final Map<Feature, String> actionBindings = new EnumMap<>(Feature.class);
   public static KeyMapping guiKey;
   public static CameraModes cameras;
   public static Effects effects;
@@ -38,6 +41,7 @@ public final class FluxTweaks implements ClientModInitializer {
   public static SpotifyService spotify;
   public static SpotifyHud hud;
   public static HandChams chams;
+  public static NotificationHud notifications;
   public static String message = "";
   private static ConfigStore store;
   private static boolean dirty;
@@ -53,7 +57,9 @@ public final class FluxTweaks implements ClientModInitializer {
   }
 
   public static boolean active(Feature feature) {
-    return config.enabled(feature);
+    if (!config.enabled(feature)) return false;
+    if (feature.camera()) return cameras != null && cameras.isActive(feature);
+    return feature != Feature.ZOOM || Zoom.active();
   }
 
   public static boolean suppressMovement() {
@@ -82,6 +88,16 @@ public final class FluxTweaks implements ClientModInitializer {
           KeyBindingHelper.registerKeyBinding(
               new KeyMapping(
                   "key.fluxtweaks." + f.id, InputConstants.UNKNOWN.getValue(), category)));
+    for (Feature f : Feature.values()) {
+      enableKeys.put(
+          f,
+          f.hasAction()
+              ? KeyBindingHelper.registerKeyBinding(
+                  new KeyMapping(
+                      "key.fluxtweaks.enable." + f.id, InputConstants.UNKNOWN.getValue(), category))
+              : keys.get(f));
+    }
+    notifications = new NotificationHud();
     cameras = new CameraModes();
     effects = new Effects();
     shields = new ShieldStatus();
@@ -96,6 +112,8 @@ public final class FluxTweaks implements ClientModInitializer {
         mc -> {
           if (mc.level != lastLevel) {
             cameras.reset();
+            Zoom.cancel();
+            notifications.clear();
             effects.clear();
             shields.clear();
             lastLevel = mc.level;
@@ -113,6 +131,13 @@ public final class FluxTweaks implements ClientModInitializer {
         });
     HudElementRegistry.attachElementBefore(
         VanillaHudElements.CHAT, id("spotify"), (graphics, delta) -> hud.render(graphics, false));
+    HudElementRegistry.attachElementBefore(
+        VanillaHudElements.CHAT,
+        id("notifications"),
+        (graphics, delta) -> {
+          if (!(Minecraft.getInstance().screen instanceof FluxScreen))
+            notifications.render(graphics, false);
+        });
     ClientLifecycleEvents.CLIENT_STOPPING.register(
         mc -> {
           save();
@@ -132,16 +157,29 @@ public final class FluxTweaks implements ClientModInitializer {
         mc.screen.onClose();
       else if (mc.screen == null) mc.setScreen(new FluxScreen());
     }
+    boolean editing = mc.screen != null || mc.getOverlay() != null || !mc.isWindowActive();
     for (Feature f : Feature.values()) {
-      KeyMapping binding = keys.get(f);
+      KeyMapping enable = enableKeys.get(f);
+      boolean toggled = false;
+      while (enable.consumeClick()) toggled = true;
+      if (toggled && !editing) setEnabled(f, !config.enabled(f));
+      if (!f.hasAction()) continue;
+      KeyMapping action = keys.get(f);
       boolean pressed = false;
-      while (binding.consumeClick()) pressed = true;
+      while (action.consumeClick()) pressed = true;
       if (f == Feature.ZOOM) continue;
-      boolean hold = f == Feature.FREELOOK && config.text(f, "activation").equals("Hold");
-      if (hold) {
-        boolean wanted = mc.screen == null && binding.isDown() && mc.player != null;
-        if (wanted != active(f)) setEnabled(f, wanted);
-      } else if (pressed && mc.screen == null) setEnabled(f, !active(f));
+      var gate = actionGates.computeIfAbsent(f, ignored -> new ActionGate());
+      String binding = action.saveString() + ":" + config.text(f, "activation");
+      if (!binding.equals(actionBindings.put(f, binding))) {
+        gate.block();
+        setActive(f, false);
+      }
+      boolean available = config.enabled(f) && mc.player != null && mc.player.isAlive();
+      boolean hold = config.text(f, "activation").equals("Hold");
+      boolean wanted =
+          gate.update(available && !toggled && !editing, action.isDown(), pressed, hold, active(f));
+      if (available && editing && !hold) wanted = active(f);
+      if (wanted != active(f)) setActive(f, wanted);
     }
     cameras.tick();
     Zoom.refresh();
@@ -152,12 +190,30 @@ public final class FluxTweaks implements ClientModInitializer {
   }
 
   public static void setEnabled(Feature feature, boolean enabled) {
-    if (feature.camera() && cameras != null) {
-      if (!cameras.change(feature, enabled)) return;
-    }
+    if (config.enabled(feature) == enabled) return;
+    if (!enabled && feature.camera() && cameras != null) cameras.change(feature, false);
     config.module(feature).enabled = enabled;
+    if (feature.hasAction())
+      actionGates.computeIfAbsent(feature, ignored -> new ActionGate()).block();
+    if (feature == Feature.ZOOM) Zoom.refresh();
     if (feature == Feature.HAND_CHAMS && !enabled && chams != null) chams.close();
+    if (notifications != null)
+      notifications.push(
+          feature, enabled ? NotificationQueue.State.ENABLED : NotificationQueue.State.DISABLED);
     changed();
+  }
+
+  public static void setActive(Feature feature, boolean active) {
+    if (feature.camera() && cameras != null && (!active || config.enabled(feature)))
+      cameras.change(feature, active);
+  }
+
+  public static void actionChanged(Feature feature, boolean active) {
+    if (!active) actionGates.computeIfAbsent(feature, ignored -> new ActionGate()).block();
+    if (notifications != null)
+      notifications.push(
+          feature,
+          active ? NotificationQueue.State.ACTIVATED : NotificationQueue.State.DEACTIVATED);
   }
 
   public static void changed() {

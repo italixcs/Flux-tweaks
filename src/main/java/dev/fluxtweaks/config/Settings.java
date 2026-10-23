@@ -113,10 +113,11 @@ public final class Settings {
             color("low", "Low Durability Color", 0xFFB43B),
             number("threshold", "Low Durability Threshold", 20, 1, 99, 1, "%")));
     ALL.put(
-        Feature.FREELOOK, List.of(choice("activation", "Activation", "Toggle", "Toggle", "Hold")));
+        Feature.FREELOOK, List.of(choice("activation", "Action Mode", "Toggle", "Toggle", "Hold")));
     ALL.put(
         Feature.FREECAM,
         List.of(
+            choice("activation", "Action Mode", "Toggle", "Toggle", "Hold"),
             number("speed", "Camera Speed", .5, .05, 3, .05, "blocks/tick"),
             number("sprint", "Sprint Multiplier", 3, 1, 10, .1, "")));
     ALL.put(Feature.FULLBRIGHT, List.of());

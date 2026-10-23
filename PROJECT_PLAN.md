@@ -95,3 +95,7 @@ Owner requested that the remaining pixelated Spotify repeat symbol match the smo
 ## Lunar / Iris 26.2 startup compatibility — 0.2.3 (2026-10-23)
 
 Research the official custom-Fabric-mod loading workflow using Context7 plus official Lunar guides where the index lacks launcher docs. The owner's exact crash is an exclusive first-person hand-call redirect conflict between Flux and Iris, reproducible outside Lunar. Patch only the 26.2 adapter to preserve the operation chain and add a pinned Iris acceptance profile. Keep the real Lunar retest and shader-pack support separate from ordinary Fabric + Iris evidence. The 1.21.11 build remains 0.2.2. Findings and sources: docs/LUNAR-COMPATIBILITY.md.
+
+## Module icons, Enable/Action controls and notification HUD — 0.2.4 (2026-10-23)
+
+Owner approved module icons and separate Enable/Action bindings, then requested a positionable notification HUD for Enabled, Disabled, Activated and Deactivated events. Preserve both adapters, all fourteen modules and the 26.2 Iris fix. Use shared vector icons and theme components; keep existing camera/Zoom binds as Action and add unbound Enable bindings. Save availability but never active camera state. Continuous modules retain their existing Enable binds. HUD Editor selects/moves/scales Spotify and Notifications independently, with previews and selected-element reset. Notification defaults: silent, three-card limit, 2.5-second lifetime, reduced-motion-aware cubic arrival/departure. See docs/MODULE-CONTROLS-024.md for the design and evidence.

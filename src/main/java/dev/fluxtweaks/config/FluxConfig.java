@@ -7,6 +7,7 @@ public final class FluxConfig {
   public int schemaVersion = 1;
   public Theme theme = new Theme();
   public Layout layout = new Layout();
+  public Notifications notifications = new Notifications();
   public Map<String, Module> modules = new LinkedHashMap<>();
 
   public static class Theme {
@@ -21,6 +22,11 @@ public final class FluxConfig {
     public String selected = "hand_chams";
   }
 
+  public static class Notifications {
+    public boolean enabled = true;
+    public double x = .66, y = .06, scale = 1;
+  }
+
   public static class Module {
     public boolean enabled;
     public JsonObject values = new JsonObject();
@@ -33,6 +39,10 @@ public final class FluxConfig {
   public void sanitize() {
     if (theme == null) theme = new Theme();
     if (layout == null) layout = new Layout();
+    if (notifications == null) notifications = new Notifications();
+    notifications.x = Math.clamp(finite(notifications.x, .66), 0, 1);
+    notifications.y = Math.clamp(finite(notifications.y, .06), 0, 1);
+    notifications.scale = Math.clamp(finite(notifications.scale, 1), .5, 2);
     if (modules == null) modules = new LinkedHashMap<>();
     theme.opacity = Double.isFinite(theme.opacity) ? Math.clamp(theme.opacity, 0, 1) : .92;
     theme.guiScale = dev.fluxtweaks.gui.GuiLayout.preference(theme.guiScale);

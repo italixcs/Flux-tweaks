@@ -12,12 +12,22 @@ Choose the JAR that matches your Minecraft profile. Install only one Flux Tweaks
 | 26.2 | 25 | 0.19.5 or newer | 0.161.0+26.2 | 0.9.2 for 26.2 |
 
 1. Create the matching Fabric profile and install its Fabric API.
-2. Add `fluxtweaks-0.2.2-mc1.21.11.jar` or `fluxtweaks-0.2.3-mc26.2.jar` to its `mods` folder. The Windows Spotify bridge is bundled.
+2. Add `fluxtweaks-0.2.4-mc1.21.11.jar` or `fluxtweaks-0.2.4-mc26.2.jar` to its `mods` folder. The Windows Spotify bridge is bundled.
 3. Launch a world and press **Right Shift**. Existing settings migrate; new installations start with all modules disabled and feature keys unbound.
+
+## Module controls and notifications — 0.2.4
+
+- Smooth module icons in the feature list, settings heading and notifications.
+- **Freecam, Freelook and Zoom:** separate **Enable Key** and **Action Key**. Enable saves availability; Action starts/stops the operation. Both cameras offer Hold/Toggle; Zoom stays Hold. The GUI shows Disabled, Ready or Active. Existing keys for these three become Action keys; new Enable keys start unbound.
+- **Notifications HUD:** themed, silent Enabled/Disabled/Activated/Deactivated cards, up to three at once for 2.5 seconds, with Reduced Motion support. Theme → Module Notifications turns them off.
+- **HUD Editor:** choose Spotify or Notifications, then drag, scroll to scale, or use arrows to nudge. Tab changes selection; Reset/Home resets only the selected HUD. Placement and scale save independently.
+- Saved camera availability survives launch and world changes; actual camera/zoom actions always start inactive. Disabling an active module stops it immediately.
+
+See [controls, migration and acceptance](docs/MODULE-CONTROLS-024.md). Both Minecraft builds are 0.2.4; the earlier 26.2 Iris fix is included.
 
 ## Minecraft 26.2 Iris compatibility patch — 0.2.3
 
-The 26.2 JAR fixes a startup conflict between Flux Hand Chams and Iris's hand renderer, also present in Lunar's bundled Iris stack. The hand hook now preserves the original operation chain. The 1.21.11 build remains 0.2.2. See [Lunar documentation, exact crash diagnosis and verification limits](docs/LUNAR-COMPATIBILITY.md).
+The 26.2 JAR fixes a startup conflict between Flux Hand Chams and Iris's hand renderer, also present in Lunar's bundled Iris stack. The hand hook now preserves the original operation chain. That patch affected only 26.2; both targets now use 0.2.4. See [Lunar documentation, exact crash diagnosis and verification limits](docs/LUNAR-COMPATIBILITY.md).
 
 ## Spotify repeat icon in 0.2.2
 
@@ -70,14 +80,14 @@ Replace the old mod JAR with the new one. Your existing version-1 configuration 
 ## Controls and settings
 
 - **Right Shift:** open/close Flux Tweaks. Rebind under Minecraft Controls → Flux Tweaks.
-- Each feature has an Enabled switch and keybind row. Click the row and press a keyboard or mouse button; **Delete/Backspace** clears it and **Esc** cancels. Feature binds also appear in Minecraft Controls and initially remain unbound. **Zoom is a hold binding:** its Enabled switch arms it; the key temporarily zooms. Other module keys toggle, except Freelook when configured to Hold.
+- Each feature has an Enabled switch and **Enable Key**. Freecam/Freelook/Zoom also have an **Action Key**: enable them first, then use Action to operate them. Click a binding row and press a keyboard or mouse button; **Delete/Backspace** clears it and **Esc** cancels. Bindings also appear in Minecraft Controls. Continuous modules use their Enable key to toggle the effect; cameras use their selected Hold/Toggle mode, and Zoom uses Hold.
 - Drag a panel's heading to move it. Select a feature to open its settings; scroll the feature list or long settings. Search filters the flat list.
 - Drag sliders, or click their displayed value to type. Range values accept `min, max`. Colors offer a picker and six-digit hex entry.
-- **Theme:** primary/secondary/background colors, transparency, Reduced Motion and **GUI Scale (50–150%)**. **Reset Layout / Home** restores both panels, HUD placement and 100% GUI scale. Spotify retains its separate HUD scale.
-- **HUD Editor:** drag the Spotify card, scroll to scale, arrow keys to nudge, Esc to return. Playback buttons work while the editor or Flux GUI is open.
+- **Theme:** primary/secondary/background colors, transparency, Reduced Motion and **GUI Scale (50–150%)**. **Reset Layout / Home** restores both panels, HUD placement and 100% GUI scale. Spotify and Notifications retain separate HUD scales. Theme also has a **Module Notifications** switch.
+- **HUD Editor:** select Spotify or Notifications using its chip, preview, or Tab. Drag to move, scroll to scale, arrows to nudge, Reset/Home to reset the selected element, Esc/Done to return. Spotify playback buttons work while the editor or Flux GUI is open.
 - **Ctrl+F:** focus search. **Tab/Shift+Tab:** move control focus, with narrator labels. **Enter/Space:** activate a focused control. **Page Up/Down:** scroll settings.
 
-The world keeps running in Flux screens. Gameplay movement and attack input are suspended while editing. Settings are saved to `config/fluxtweaks.json`; imported circles are copied to `config/fluxtweaks/jump-circle.png`. Invalid settings files are preserved as `.invalid-<timestamp>` before defaults are recovered. Camera features always reset on launch and world changes.
+The world keeps running in Flux screens. Gameplay movement and attack input are suspended while editing. Settings are saved to `config/fluxtweaks.json`; imported circles are copied to `config/fluxtweaks/jump-circle.png`. Invalid settings files are preserved as `.invalid-<timestamp>` before defaults are recovered. Camera and Zoom actions reset on launch and world changes; saved Enabled preferences remain available as Ready.
 
 ## Features
 

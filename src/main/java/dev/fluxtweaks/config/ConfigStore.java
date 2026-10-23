@@ -20,7 +20,6 @@ public final class ConfigStore {
       if (config == null || config.schemaVersion != 1)
         throw new JsonParseException("Unsupported configuration version");
       config.sanitize();
-      for (Feature f : Feature.values()) if (f.camera()) config.module(f).enabled = false;
       return config;
     } catch (JsonParseException | IllegalStateException ex) {
       Files.copy(

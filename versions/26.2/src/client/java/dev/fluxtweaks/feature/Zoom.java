@@ -18,6 +18,7 @@ public final class Zoom {
 
   public static void refresh() {
     var mc = Minecraft.getInstance();
+    boolean wasHeld = STATE.held();
     if (level != mc.level) {
       level = mc.level;
       STATE.reset();
@@ -30,7 +31,7 @@ public final class Zoom {
       STATE.reset();
     }
     STATE.update(
-        FluxTweaks.active(Feature.ZOOM)
+        FluxTweaks.config.enabled(Feature.ZOOM)
             && mc.player != null
             && mc.player.isAlive()
             && mc.gui.screen() == null
@@ -40,6 +41,18 @@ public final class Zoom {
         FluxTweaks.config.number(Feature.ZOOM, "magnification"),
         FluxTweaks.config.number(Feature.ZOOM, "duration"),
         now());
+    if (wasHeld != STATE.held()) FluxTweaks.actionChanged(Feature.ZOOM, STATE.held());
+  }
+
+  public static boolean active() {
+    return STATE.held();
+  }
+
+  public static void cancel() {
+    boolean held = STATE.held();
+    STATE.reset();
+    down = false;
+    if (held) FluxTweaks.actionChanged(Feature.ZOOM, false);
   }
 
   public static void keyEvent(boolean pressed) {

@@ -19,7 +19,7 @@ class ConfigStoreTest {
   }
 
   @Test
-  void roundTripPersistsVisualsButDisarmsBothCameras() throws Exception {
+  void roundTripPersistsVisualsAndCameraAvailability() throws Exception {
     ConfigStore store = new ConfigStore(directory.resolve("flux.json"));
     FluxConfig config = new FluxConfig();
     config.module(Feature.HAND_CHAMS).enabled = true;
@@ -33,6 +33,9 @@ class ConfigStoreTest {
     config.theme.primary = 0x123456;
     config.theme.reducedMotion = true;
     config.theme.guiScale = 1.25;
+    config.notifications.x = .25;
+    config.notifications.y = .3;
+    config.notifications.scale = 1.4;
     config.layout.hudX = .4;
     config.set(Feature.HIT_PARTICLES, "shape", new JsonPrimitive("Ghosts"));
     store.save(config);
@@ -43,11 +46,14 @@ class ConfigStoreTest {
     assertTrue(loaded.enabled(Feature.ZOOM));
     assertTrue(loaded.enabled(Feature.BLOCK_OVERLAY));
     assertTrue(loaded.enabled(Feature.HIT_COLOR));
-    assertFalse(loaded.enabled(Feature.FREELOOK));
-    assertFalse(loaded.enabled(Feature.FREECAM));
+    assertTrue(loaded.enabled(Feature.FREELOOK));
+    assertTrue(loaded.enabled(Feature.FREECAM));
     assertEquals(0x123456, loaded.theme.primary);
     assertTrue(loaded.theme.reducedMotion);
     assertEquals(1.25, loaded.theme.guiScale);
+    assertEquals(.25, loaded.notifications.x);
+    assertEquals(.3, loaded.notifications.y);
+    assertEquals(1.4, loaded.notifications.scale);
     assertEquals(.4, loaded.layout.hudX);
     assertEquals("Ghosts", loaded.text(Feature.HIT_PARTICLES, "shape"));
     try (var files = Files.list(directory)) {
@@ -115,11 +121,15 @@ class ConfigStoreTest {
     config.module(Feature.HIT_PARTICLES).values.addProperty("shape", "Invalid sprite");
     config.module(Feature.HAND_CHAMS).values.addProperty("speed", Double.NaN);
     config.theme.opacity = Double.NaN;
+    config.notifications.x = Double.NaN;
+    config.notifications.scale = 99;
     config.sanitize();
     assertEquals(40, config.number(Feature.HIT_PARTICLES, "amount"));
     assertEquals("Stars", config.text(Feature.HIT_PARTICLES, "shape"));
     assertEquals(1.5, config.number(Feature.HAND_CHAMS, "speed"));
     assertEquals(.92, config.theme.opacity);
+    assertEquals(.66, config.notifications.x);
+    assertEquals(2, config.notifications.scale);
   }
 
   @Test
@@ -141,6 +151,8 @@ class ConfigStoreTest {
                 FluxConfig.class);
     config.sanitize();
     for (Feature feature : Feature.values()) assertNotNull(config.module(feature));
+    assertTrue(config.notifications.enabled);
+    assertEquals(1, config.notifications.scale);
     assertEquals("Hold", Settings.find(Feature.FREELOOK, "activation").choices().get(1));
   }
 
