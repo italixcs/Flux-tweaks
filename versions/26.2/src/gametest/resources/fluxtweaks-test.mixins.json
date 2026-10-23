@@ -1,0 +1,1 @@
+{"required": true, "package": "dev.fluxtweaks.test.mixin", "compatibilityLevel": "JAVA_25", "client": ["RendererProbe", "SubmissionProbe", "KeyboardProbe", "WindowProbe"], "injectors": {"defaultRequire": 1}}

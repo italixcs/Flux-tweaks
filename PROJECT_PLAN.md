@@ -73,3 +73,25 @@ The owner confirmed the current features also work in multiplayer and requested 
 ## Approved additions — 0.1.4 (2026-10-21)
 
 Implement Zoom, Block Overlay and Hit Color as approved in docs/MODULES-0.1.4.md. Zoom uses a separate hold binding while its Enabled setting arms the module. Block Overlay follows the target selection shape with independent outline/fill controls and depth testing. Hit Color filters Players/Mobs/Self and tints native hurt/death flashes on bodies and worn armor/trims while preserving held items and glint. All three start disabled/unbound; configuration schema remains version 1. The target/toolchain and no-new-dependency requirement remain unchanged. Package the JAR and complete source with Fabric/Sodium checks and explicit remaining multiplayer acceptance.
+
+
+## Approved GUI redesign and second target — 0.2.0 (2026-10-22)
+
+The user requested a full toolkit-guided GUI redesign and separate Fabric builds for **1.21.11** and **26.2** (second target explicitly clarified). See [GUI redesign contract and verification](docs/GUI-REDESIGN.md). Preserve the fourteen modules, configuration schema 1, theme customization, two draggable panels, search, keybindings and HUD placement. Add persistent Reduced Motion. The root remains Java 21 / 1.21.11; `versions/26.2` uses Java 25, Loom 1.18.4 and Fabric API 0.161.0+26.2 with native version-specific rendering hooks. The toolkit's 26.1.2 showcase is not a runtime dependency.
+
+
+## GUI polish 0.2.1 (2026-10-23)
+
+Requested after reviewing the owner's alignment screenshots. Keep the 0.2.0 design/toolkit and both native Minecraft adapters. Use real game captures before/after. Normalize capital-height metrics in shared text rendering; center real text fields and align row labels/value boxes/modal actions. Redesign Spotify using the same charcoal/theme/rounded components, rounded art, status, progress and capability-driven controls. Keep background media/art work and independent HUD scale.
+
+The owner approved **50–150%** whole-GUI scaling, default 100%, in Theme. Save it in schema 1; scale both panels, popups, clipping and input together. Preserve automatic viewport fit, scroll on large sizes, and reset scale with layout recovery. Implementation and evidence: [GUI-POLISH-021.md](docs/GUI-POLISH-021.md).
+
+
+## Spotify repeat glyph 0.2.2 (2026-10-23)
+
+Owner requested that the remaining pixelated Spotify repeat symbol match the smoothed HUD. Both adapters now draw its loop, rounded corners, arrowheads and repeat-one mark with the existing antialiased vector primitives. Keep the current off/one/all capability and secondary-color mapping. See [repeat icon notes](docs/SPOTIFY-REPEAT-022.md).
+
+
+## Lunar / Iris 26.2 startup compatibility — 0.2.3 (2026-10-23)
+
+Research the official custom-Fabric-mod loading workflow using Context7 plus official Lunar guides where the index lacks launcher docs. The owner's exact crash is an exclusive first-person hand-call redirect conflict between Flux and Iris, reproducible outside Lunar. Patch only the 26.2 adapter to preserve the operation chain and add a pinned Iris acceptance profile. Keep the real Lunar retest and shader-pack support separate from ordinary Fabric + Iris evidence. The 1.21.11 build remains 0.2.2. Findings and sources: docs/LUNAR-COMPATIBILITY.md.

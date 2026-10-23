@@ -12,26 +12,26 @@ import org.lwjgl.glfw.GLFW;
 final class GuiAcceptance {
   static void run(ClientGameTestContext context) {
     // Bind through the actual settings row, then restore the unbound default.
-    click(context, 420, 110);
+    clickControl(context, "Set Hand Chams keybind");
     context.runOnClient(mc -> mc.screen.keyPressed(key(GLFW.GLFW_KEY_B, 0)));
     context.runOnClient(
         mc ->
             check(
                 FluxTweaks.keys.get(Feature.HAND_CHAMS).matches(key(GLFW.GLFW_KEY_B, 0)),
                 "GUI key assignment failed"));
-    click(context, 420, 110);
+    clickControl(context, "Set Hand Chams keybind");
     context.runOnClient(mc -> mc.screen.keyPressed(key(GLFW.GLFW_KEY_DELETE, 0)));
 
     // Numeric text and color hex use their real popups.
-    click(context, 420, 192);
+    clickControl(context, "Type Animation Speed");
     type(context, "2.25");
     context.runOnClient(
         mc ->
             check(
                 FluxTweaks.config.number(Feature.HAND_CHAMS, "speed") == 2.25,
                 "Typed slider value was not applied"));
-    click(context, 425, 131);
-    context.waitTicks(2);
+    clickControl(context, "First Color");
+    context.waitTicks(5);
     var pickerImage = context.takeScreenshot("flux-gui-color-picker");
     int[] pixels =
         context.computeOnClient(
@@ -43,7 +43,7 @@ final class GuiAcceptance {
                   lh = (int) (mc.getWindow().getGuiScaledHeight() / zoom);
               double physical = zoom * mc.getWindow().getGuiScale();
               int px = (int) Math.round(((lw - 236) / 2 + 219) * physical),
-                  py = (lh - 230) / 2 + 36;
+                  py = (lh - 280) / 2 + 36;
               return new int[] {
                 px, (int) Math.round((py + 40) * physical), (int) Math.round((py + 80) * physical)
               };
@@ -67,11 +67,83 @@ final class GuiAcceptance {
                 (FluxTweaks.config.color(Feature.HAND_CHAMS, "first") & 0xffffff) == 0x11aaee,
                 "Hex color was not applied"));
 
+    context.runOnClient(
+        mc -> {
+          FluxTweaks.config.layout.selected = Feature.HIT_PARTICLES.id;
+          mc.setScreen(new FluxScreen());
+        });
+    clickControl(context, "Particles choices");
+    context.waitTicks(5);
+    context.takeScreenshot("flux-gui-choice-popup");
+    context.runOnClient(
+        mc -> {
+          mc.screen.keyPressed(key(GLFW.GLFW_KEY_DOWN, 0));
+          mc.screen.keyPressed(key(GLFW.GLFW_KEY_ENTER, 0));
+          check(
+              FluxTweaks.config.text(Feature.HIT_PARTICLES, "shape").equals("Snowflakes"),
+              "Keyboard choice did not commit");
+        });
+    clickControl(context, "Particles choices");
+    click(context, 40, 140);
+    context.runOnClient(
+        mc -> {
+          check(
+              FluxTweaks.config.layout.selected.equals(Feature.HIT_PARTICLES.id),
+              "Modal leaked a background click");
+          mc.screen.keyPressed(key(GLFW.GLFW_KEY_ESCAPE, 0));
+          check(mc.screen instanceof FluxScreen, "Escape closed the screen behind a popup");
+        });
+    context.runOnClient(
+        mc ->
+            mc.screen.mouseScrolled(
+                (FluxTweaks.config.layout.settingsX + 100) * scale(mc),
+                (FluxTweaks.config.layout.settingsY + 220) * scale(mc),
+                0,
+                -20));
+    context.waitTicks(6);
+    clickControlAt(context, "Rotation Angle range slider", .9);
+    context.runOnClient(
+        mc -> {
+          double[] range = FluxTweaks.config.range(Feature.HIT_PARTICLES, "angle");
+          check(
+              range[0] == 0 && range[1] > 140 && range[1] < 150,
+              "Range click selected the wrong handle");
+        });
+    clickControl(context, "Theme");
+    clickControl(context, "Reduced Motion");
+    context.runOnClient(
+        mc -> {
+          check(FluxTweaks.config.theme.reducedMotion, "Reduced Motion did not toggle");
+          FluxTweaks.save();
+        });
+    context.waitTicks(3);
+    context.runOnClient(
+        mc -> {
+          try {
+            var field = FluxScreen.class.getDeclaredField("zones");
+            field.setAccessible(true);
+            for (Object zone : (java.util.List<?>) field.get(mc.screen)) {
+              var label = zone.getClass().getDeclaredMethod("label");
+              label.setAccessible(true);
+              if (!label.invoke(zone).equals("Reduced Motion")) continue;
+              var click = zone.getClass().getDeclaredMethod("click");
+              click.setAccessible(true);
+              Runnable action = (Runnable) click.invoke(zone);
+              action.run();
+              action.run();
+              check(FluxTweaks.config.theme.reducedMotion, "Rapid toggles used stale values");
+              return;
+            }
+            throw new AssertionError("Reduced Motion control missing");
+          } catch (ReflectiveOperationException ex) {
+            throw new AssertionError(ex);
+          }
+        });
     context.runOnClient(mc -> mc.screen.keyPressed(key(GLFW.GLFW_KEY_F, GLFW.GLFW_MOD_CONTROL)));
     context.runOnClient(
         mc -> "free".codePoints().forEach(c -> mc.screen.charTyped(new CharacterEvent(c, 0))));
-    context.waitTicks(2);
-    click(context, 65, 146);
+    context.waitTicks(5);
+    clickControl(context, "Configure Freecam");
     context.runOnClient(
         mc ->
             check(
@@ -81,7 +153,7 @@ final class GuiAcceptance {
     context.runOnClient(
         mc ->
             check(
-                FluxTweaks.config.layout.navX == 16 && FluxTweaks.config.layout.settingsX == 198,
+                FluxTweaks.config.layout.navX == 16 && FluxTweaks.config.layout.settingsX == 218,
                 "Layout reset failed"));
 
     for (int[] size : new int[][] {{854, 480, 1}, {1920, 1080, 3}, {1280, 800, 2}}) {
@@ -92,7 +164,7 @@ final class GuiAcceptance {
             mc.resizeDisplay();
             mc.setScreen(new FluxScreen());
           });
-      context.waitTicks(2);
+      context.waitTicks(5);
       context.takeScreenshot("flux-gui-scale-" + size[2]);
       context.runOnClient(
           mc ->
@@ -105,14 +177,64 @@ final class GuiAcceptance {
           FluxTweaks.config.layout.selected = "hit_particles";
           mc.setScreen(new FluxScreen());
         });
-    context.waitTicks(3);
+    context.waitTicks(6);
     context.takeScreenshot("flux-gui-choices");
+    int previousCap = context.computeOnClient(mc -> mc.options.framerateLimit().get());
+    for (int cap : new int[] {30, 60, 144}) {
+      context.runOnClient(
+          mc -> {
+            mc.options.framerateLimit().set(cap);
+            FluxTweaks.config.theme.reducedMotion = false;
+            mc.setScreen(new FluxScreen());
+          });
+      context.waitTicks(6);
+      context.takeScreenshot("flux-gui-fps-cap-" + cap);
+      context.runOnClient(mc -> mc.screen.onClose());
+      context.waitTicks(5);
+      context.runOnClient(
+          mc -> check(!(mc.screen instanceof FluxScreen), "Screen closing failed at cap " + cap));
+    }
+    context.runOnClient(mc -> mc.options.framerateLimit().set(previousCap));
     context.runOnClient(
         mc -> {
           FluxTweaks.config = new dev.fluxtweaks.config.FluxConfig();
           mc.setScreen(new FluxScreen());
         });
-    context.waitTicks(2);
+    context.waitTicks(5);
+  }
+
+  static void clickControl(ClientGameTestContext context, String label) {
+    clickControlAt(context, label, .5);
+  }
+
+  static void clickControlAt(ClientGameTestContext context, String label, double fraction) {
+    context.waitTicks(6);
+    double[] point =
+        context.computeOnClient(
+            mc -> {
+              try {
+                var field = FluxScreen.class.getDeclaredField("zones");
+                field.setAccessible(true);
+                for (Object zone : (java.util.List<?>) field.get(mc.screen)) {
+                  Class<?> type = zone.getClass();
+                  var name = type.getDeclaredMethod("label");
+                  name.setAccessible(true);
+                  if (!label.equals(name.invoke(zone))) continue;
+                  double[] values = new double[4];
+                  String[] keys = {"x", "y", "w", "h"};
+                  for (int i = 0; i < keys.length; i++) {
+                    var method = type.getDeclaredMethod(keys[i]);
+                    method.setAccessible(true);
+                    values[i] = ((Number) method.invoke(zone)).doubleValue();
+                  }
+                  return new double[] {values[0] + values[2] * fraction, values[1] + values[3] / 2};
+                }
+                throw new AssertionError("Missing visible GUI control: " + label);
+              } catch (ReflectiveOperationException ex) {
+                throw new AssertionError(ex);
+              }
+            });
+    click(context, point[0], point[1]);
   }
 
   private static void click(ClientGameTestContext context, double x, double y) {
@@ -126,7 +248,7 @@ final class GuiAcceptance {
         });
   }
 
-  private static void type(ClientGameTestContext context, String text) {
+  static void type(ClientGameTestContext context, String text) {
     context.runOnClient(
         mc -> {
           mc.screen.keyPressed(key(GLFW.GLFW_KEY_A, GLFW.GLFW_MOD_CONTROL));

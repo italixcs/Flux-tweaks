@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "fluxtweaks",
+  "version": "${version}",
+  "name": "Flux Tweaks",
+  "description": "Your everyday client-side visuals, camera and HUD tweaks in one mod.",
+  "environment": "client",
+  "entrypoints": { "client": ["dev.fluxtweaks.FluxTweaks"] },
+  "mixins": ["fluxtweaks.mixins.json"],
+  "depends": { "fabricloader": ">=0.19.5", "minecraft": "~26.2", "java": ">=25", "fabric-api": "*" }
+}

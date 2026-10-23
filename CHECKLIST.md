@@ -1,6 +1,52 @@
 # Implementation and acceptance checklist
 
-Implementation complete; acceptance evidence recorded below. Updated 2026-10-21.
+Implementation complete; acceptance evidence recorded below. Updated 2026-10-23.
+
+## Minecraft 26.2 / Lunar-Iris crash — 0.2.3 (2026-10-23)
+
+- [x] Context7 and official Lunar custom-mod guides researched; exact local crash reports identify conflicting Flux/Iris hand-render redirects.
+- [x] Same crash reproduced outside Lunar using Flux 0.2.2 + Iris 1.11.4 + Sodium 0.9.2.
+- [x] 26.2 hand hook now wraps/preserves the original operation through normal, Chams and shield-mask paths.
+- [x] Patched Iris/Sodium packaged client suite passes without a shader pack; 43 Java 25 logic cases pass.
+- [x] Final 26.2 Fabric/Sodium regression runs pass; patch JAR/source metadata, licenses and byte equality verified.
+- [ ] Owner acceptance in real Lunar and shader-pack-specific rendering combinations.
+
+See [Lunar compatibility report and relevant official docs](docs/LUNAR-COMPATIBILITY.md). The 1.21.11 adapter remains 0.2.2; Lunar's profile/settings are untouched.
+
+## Spotify repeat icon — 0.2.2 (2026-10-23)
+
+- [x] Replaced repeat loop/arrowheads with rounded, antialiased vector strokes in both adapters, retaining repeat-one and state colors.
+- [x] Minecraft 1.21.11 Fabric packaged run and 43 logic cases pass; real captures cover off/one/all with rendered-color assertions.
+- [x] All four final packaged clients pass (1.21.11/26.2, Fabric/Sodium); 43 logic cases pass on each JDK. JARs, source archive and checksums verified.
+
+See [repeat icon notes](docs/SPOTIFY-REPEAT-022.md). No media commands are needed for these rendering checks.
+
+## GUI alignment, Spotify HUD and scale — 0.2.1 (2026-10-23)
+
+- [x] Fresh before captures reproduce the owner's text alignment report; actual font metrics now drive shared label/title/input alignment in both adapters.
+- [x] Search, switches, value/range fields, checked choices and modal actions share consistent alignment; title fitting measures the actual title font.
+- [x] Spotify theme/rounded-art/button redesign, progress/status, capability filtering and independent scale; HUD Editor toolbar avoids the default card position.
+- [x] Saved Theme GUI Scale 50–150%, typed percentage/slider, transformed pointer/clipping, resizing and Home/layout recovery.
+- [x] Forty-three configuration/layout/motion cases pass on Java 21 and Java 25, including older-config migration and scale limits.
+- [x] Minecraft 1.21.11 packaged clients: Fabric and Sodium 0.8.14; pixel alignment checks, real scale/search/toggle input and deterministic Spotify metadata/art/capability/drag/scale cases.
+- [x] Minecraft 26.2 final packaged Fabric/Sodium 0.9.2 checks and visual review.
+- [x] Final 0.2.1 distribution/source verification (both matching JARs, licenses/native bridge, source bytes and SHA-256 manifest).
+- [ ] Owner approval in normal multiplayer profiles and subjective sizing/typography; sustained GPU/performance checks remain pending.
+
+See [design, evidence and screenshots](docs/GUI-POLISH-021.md). Deterministic media frames are test-only. No playback commands were sent and dedicated-server testing remains disabled.
+
+## GUI redesign and dual Minecraft targets — 0.2.0 (2026-10-22)
+
+- [x] Toolkit-guided full settings/HUD styling, larger Lato typography, rounded controls, compact choice dialogs, color/typed-value editors and keyboard focus.
+- [x] Shared monotonic cubic motion, interruption-safe transitions and saved Reduced Motion; existing settings and schema 1 preserved.
+- [x] Click/drag coordinates match rendering; rapid toggles read current settings and range clicks choose the nearest handle from the actual event.
+- [x] Separate native 1.21.11 / Java 21 and 26.2 / Java 25 builds with all fourteen modules.
+- [x] Thirty-eight logic/configuration/motion cases pass on each JDK.
+- [x] Final 0.2.0 packaged client matrix: 1.21.11 Fabric and Sodium 0.8.14; 26.2 Fabric and Sodium 0.9.2.
+- [x] Final source/JAR/license/version inspection and distribution copies.
+- [ ] Owner approval in their usual worlds/servers, subjective smoothness and extended performance/session checks.
+
+See [GUI redesign contract and evidence](docs/GUI-REDESIGN.md). Prior multiplayer confirmation below applies to earlier releases; no dedicated server was started.
 
 ## Zoom, Block Overlay and Hit Color — 0.1.4 (2026-10-21)
 

@@ -18,14 +18,23 @@ import org.lwjgl.glfw.GLFW;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 public final class FluxScreen extends Screen {
-  private record Entry(Setting setting, JsonElement value, Consumer<JsonElement> setter) {}
+  private record Entry(Setting setting, Supplier<JsonElement> read, Consumer<JsonElement> setter) {
+    JsonElement value() {
+      return read.get();
+    }
+  }
 
   private record Zone(
       String label, int x, int y, int w, int h, Runnable click, DoubleConsumer drag) {}
 
   private final List<Zone> zones = new ArrayList<>();
+  private final Map<String, IntConsumer> adjustments = new HashMap<>();
   private final Ui.Motion motion = new Ui.Motion();
   private Feature selected;
+  private Entry choiceEntry;
+  private int choiceFocus, savedFocus;
+  private boolean closing;
+  private float screenOffset;
   private boolean theme, settingsVisible = true, binding;
   private EditBox search, editor;
   private Consumer<String> editCommit;
@@ -44,11 +53,13 @@ public final class FluxScreen extends Screen {
   private int dragPanel;
   private double dragOffsetX, dragOffsetY;
   private Zone slider;
-  private String lastNarrated = "";
+  private String lastNarrated = "", lastMessage = "";
+  private long messageSince;
   private int contentTop, contentBottom;
 
   public FluxScreen() {
     super(Component.literal("Flux Tweaks"));
+    motion.snap("screen", 0);
     String id = FluxTweaks.config.layout.selected;
     selected =
         Arrays.stream(Feature.values())
@@ -59,47 +70,60 @@ public final class FluxScreen extends Screen {
 
   @Override
   protected void init() {
-    scale = Ui.scaleFor(width, height);
-    logicalWidth = (int) (width / scale);
-    logicalHeight = (int) (height / scale);
-    navHeight = Math.min(460, logicalHeight - 40);
-    settingsHeight = desiredSettingsHeight();
-    clampPanels();
+    updateViewport();
     String old = search == null ? "" : search.getValue();
-    search = Ui.input(0, 0, 122, 18, "Search features");
+    search = Ui.input(0, 0, 138, 32, "Search features");
     search.setBordered(false);
     search.setMaxLength(64);
     search.setHint(Ui.label("Search features…"));
     search.setTextColor(Ui.WHITE);
     search.setValue(old);
+    if (editor != null) {
+      editor.setX(popupX() + 14);
+      editor.setY(popupY() + (colorPopup ? 174 : 33));
+    }
+  }
+
+  private void updateViewport() {
+    scale = Ui.scaleFor(width, height);
+    logicalWidth = (int) (width / scale);
+    logicalHeight = (int) (height / scale);
+    navHeight = Math.min(520, logicalHeight - 32);
+    settingsHeight = desiredSettingsHeight();
+    clampPanels();
   }
 
   private String featureHint() {
     return switch (selected) {
-      case SHIELD_STATUS -> "Other players' cooldowns are estimates.";
-      case FREECAM -> "Camera only. Your body stays in the world.";
+      case HAND_CHAMS -> "Animated outlines for your hands and held items.";
+      case VIEW_MODELS -> "Make your hands and items feel right.";
+      case HIT_PARTICLES -> "A little feedback for every connected hit.";
+      case JUMP_CIRCLE -> "Leave a fading ring where you take off.";
+      case AMBIENCE -> "Set the atmosphere, just on your screen.";
+      case SHIELD_STATUS -> "Remote shield cooldowns are estimates.";
+      case FREELOOK -> "Look around while keeping your direction.";
+      case FREECAM -> "Explore loaded terrain. Your body stays put.";
       case SPOTIFY -> FluxTweaks.spotify.status();
-      case FULLBRIGHT -> "Brightens dark areas on your screen.";
-      case LOW_FIRE -> "Lowers burning flames to keep your view clear.";
-      case ZOOM -> "Enable, then hold your key. Scroll to adjust.";
-      case BLOCK_OVERLAY -> "Customizes the block under your crosshair.";
-      case HIT_COLOR -> "Colors damage flashes on bodies and armor.";
-      default -> "";
+      case FULLBRIGHT -> "Keep dark places easy to see.";
+      case LOW_FIRE -> "Keep the flames out of your line of sight.";
+      case ZOOM -> "Hold your key to zoom. Scroll to adjust.";
+      case BLOCK_OVERLAY -> "A clear outline of the block you are targeting.";
+      case HIT_COLOR -> "Your own color for the damage flash.";
     };
   }
 
   private int desiredSettingsHeight() {
-    int prefix = theme ? 44 : 103 + (featureHint().isBlank() ? 0 : 23);
-    int content = entries().stream().mapToInt(e -> rowHeight(e.setting())).sum();
-    return Math.min(navHeight, Math.max(150, prefix + content + 14));
+    return navHeight;
   }
 
   private void clampPanels() {
     var p = FluxTweaks.config.layout;
-    p.navX = Math.clamp(p.navX, 8, logicalWidth - 178);
-    p.navY = Math.clamp(p.navY, 8, logicalHeight - navHeight - 8);
-    p.settingsX = Math.clamp(p.settingsX, 8, logicalWidth - 268);
-    p.settingsY = Math.clamp(p.settingsY, 8, logicalHeight - settingsHeight - 8);
+    p.navX = Math.clamp(p.navX, 8, Math.max(8, logicalWidth - 198));
+    p.navY = Math.clamp(p.navY, 8, Math.max(8, logicalHeight - navHeight - 8));
+    p.settingsX = Math.clamp(p.settingsX, 8, Math.max(8, logicalWidth - 328));
+    p.settingsY = Math.clamp(p.settingsY, 8, Math.max(8, logicalHeight - settingsHeight - 8));
+    // Recover the original default pair after the navigation panel became wider.
+    if (p.navX == 16 && p.settingsX == 198) p.settingsX = 218;
   }
 
   private void zone(String label, int x, int y, int w, int h, Runnable action) {
@@ -114,37 +138,53 @@ public final class FluxScreen extends Screen {
 
   @Override
   public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+    if (slider == null && !popup() && scale != Ui.scaleFor(width, height)) updateViewport();
     zones.clear();
-    motion.frame();
-    int mx = (int) (mouseX / scale), my = (int) (mouseY / scale);
+    adjustments.clear();
+    float appearance = motion.value("screen", closing ? 0 : 1, closing ? 140 : 220);
+    if (closing && appearance == 0) {
+      minecraft.setScreen(null);
+      return;
+    }
+    screenOffset = (1 - appearance) * 8;
+    int mx = (int) (mouseX / scale), my = (int) (mouseY / scale - screenOffset);
     g.pose().pushMatrix();
     g.pose().scale(scale, scale);
-    settingsHeight = desiredSettingsHeight();
+    g.pose().translate(0, screenOffset);
     clampPanels();
     var p = FluxTweaks.config.layout;
     int nx = (int) p.navX, ny = (int) p.navY, sx = (int) p.settingsX, sy = (int) p.settingsY;
-    Ui.rounded(g, nx, ny, 170, navHeight, 13, Ui.panel());
-    Ui.outline(g, nx, ny, 170, navHeight, 13, 0x12FFFFFF);
-    Ui.title(g, "Flux Tweaks", nx + 16, ny + 18, Ui.WHITE);
-    Ui.text(g, "1.21.11", nx + 16, ny + 35, Ui.MUTED);
+    Ui.surface(g, nx, ny, 190, navHeight);
+    Ui.rounded(g, nx + 16, ny + 17, 4, 20, 2, Ui.primary());
+    Ui.titleRow(g, "Flux Tweaks", nx + 28, ny + 17, 20, Ui.WHITE);
+    long enabled = Arrays.stream(Feature.values()).filter(FluxTweaks::active).count();
+    Ui.text(
+        g,
+        Feature.values().length + " features · " + enabled + " enabled",
+        nx + 16,
+        ny + 44,
+        Ui.MUTED);
     zone(
         "Move feature panel",
         nx,
         ny,
-        170,
-        49,
+        158,
+        60,
         () -> {
           dragPanel = 1;
           dragOffsetX = mx - nx;
           dragOffsetY = my - ny;
         });
-    Ui.rounded(g, nx + 10, ny + 55, 150, 26, 7, Ui.inset());
-    Ui.outline(g, nx + 18, ny + 63, 7, 7, 3.5f, Ui.MUTED);
-    Ui.line(g, nx + 24, ny + 69, nx + 27, ny + 72, 1, Ui.MUTED);
-    search.setX(nx + 35);
-    search.setY(ny + 63);
+    Ui.close(g, nx + 168, ny + 22, Ui.MUTED);
+    zone("Close Flux Tweaks", nx + 157, ny + 10, 26, 30, this::onClose);
+    Ui.rounded(g, nx + 12, ny + 67, 166, 32, 7, Ui.inset());
+    Ui.outline(g, nx + 12, ny + 67, 166, 32, 7, search.isFocused() ? Ui.secondary() : 0x22FFFFFF);
+    Ui.outline(g, nx + 22, ny + 77, 8, 8, 4, Ui.MUTED);
+    Ui.line(g, nx + 29, ny + 84, nx + 32, ny + 87, 1.2f, Ui.MUTED);
+    search.setX(nx + 40);
+    search.setY(ny + 67);
     search.render(g, mx, my, delta);
-    int listTop = ny + 91, listBottom = ny + navHeight - 67;
+    int listTop = ny + 111, listBottom = ny + navHeight - 90;
     List<Feature> visible =
         Arrays.stream(Feature.values())
             .filter(
@@ -153,52 +193,65 @@ public final class FluxScreen extends Screen {
                         .toLowerCase(Locale.ROOT)
                         .contains(search.getValue().toLowerCase(Locale.ROOT)))
             .toList();
-    navScroll = Math.clamp(navScroll, 0, Math.max(0, visible.size() * 28 - (listBottom - listTop)));
-    g.enableScissor(nx + 6, listTop, nx + 164, listBottom);
+    navScroll = Math.clamp(navScroll, 0, Math.max(0, visible.size() * 32 - (listBottom - listTop)));
+    g.enableScissor(nx + 8, listTop, nx + 182, listBottom);
     int yy = listTop - navScroll;
     for (Feature f : visible) {
       int row = yy;
-      if (row + 27 > listTop && row < listBottom) {
-        if (!theme && f == selected)
-          Ui.rounded(g, nx + 8, row, 154, 25, 6, Ui.alpha(FluxTweaks.config.theme.primary, .17f));
-        else {
-          float hover =
-              motion.value("nav." + f.id, Ui.inside(mx, my, nx + 8, row, 154, 25) ? 1 : 0);
-          Ui.rounded(g, nx + 8, row, 154, 25, 6, Ui.alpha(0xffffff, hover * .055f));
-        }
-        Ui.text(g, f.title, nx + 17, row + 8, (!theme && f == selected) ? Ui.WHITE : Ui.MUTED);
+      if (row + 30 > listTop && row < listBottom) {
+        boolean current = !theme && f == selected;
+        float hover = motion.value("nav." + f.id, Ui.inside(mx, my, nx + 10, row, 170, 30) ? 1 : 0);
         Ui.rounded(
-            g, nx + 147, row + 10, 4, 4, 2, FluxTweaks.active(f) ? Ui.secondary() : 0xFF626268);
-        int ztop = Math.max(row, listTop), zbottom = Math.min(row + 27, listBottom);
+            g,
+            nx + 10,
+            row,
+            170,
+            30,
+            7,
+            current
+                ? Ui.alpha(FluxTweaks.config.theme.primary, .18f)
+                : Ui.alpha(0xffffff, hover * .065f));
+        if (current) Ui.rounded(g, nx + 10, row + 8, 3, 14, 1.5f, Ui.primary());
+        Ui.row(g, f.title, nx + 21, row, 30, current ? Ui.WHITE : Ui.MUTED);
+        Ui.row(
+            g,
+            FluxTweaks.active(f) ? "On" : "Off",
+            nx + 152,
+            row,
+            30,
+            FluxTweaks.active(f) ? Ui.secondary() : Ui.MUTED);
         zone(
             "Configure " + f.title,
-            nx + 8,
-            ztop,
-            154,
-            zbottom - ztop,
-            () -> {
-              selected = f;
-              theme = false;
-              settingsVisible = true;
-              settingsScroll = 0;
-              motion.snap("scroll", 0);
-              binding = false;
-              FluxTweaks.config.layout.selected = f.id;
-              FluxTweaks.changed();
-            });
+            nx + 10,
+            Math.max(row, listTop),
+            170,
+            Math.min(row + 30, listBottom) - Math.max(row, listTop),
+            () -> select(f));
       }
-      yy += 28;
+      yy += 32;
     }
     g.disableScissor();
-    if (visible.isEmpty()) Ui.text(g, "No matching features", nx + 15, listTop + 10, Ui.MUTED);
-    g.fill(nx + 15, ny + navHeight - 61, nx + 155, ny + navHeight - 60, 0x1AFFFFFF);
+    if (visible.isEmpty()) Ui.text(g, "No features found", nx + 21, listTop + 12, Ui.MUTED);
+    if (visible.size() * 32 > listBottom - listTop) {
+      float track = listBottom - listTop,
+          thumb = Math.max(20, track * track / (visible.size() * 32));
+      Ui.rounded(
+          g,
+          nx + 183,
+          listTop + (track - thumb) * navScroll / Math.max(1, visible.size() * 32 - track),
+          2,
+          thumb,
+          1,
+          0x65FFFFFF);
+    }
+    g.fill(nx + 16, ny + navHeight - 78, nx + 174, ny + navHeight - 77, 0x20FFFFFF);
     textButton(
         g,
         "Theme",
         nx + 12,
-        ny + navHeight - 52,
-        146,
-        22,
+        ny + navHeight - 68,
+        166,
+        28,
         mx,
         my,
         () -> {
@@ -212,9 +265,9 @@ public final class FluxScreen extends Screen {
         g,
         "HUD Editor",
         nx + 12,
-        ny + navHeight - 28,
-        146,
-        22,
+        ny + navHeight - 36,
+        166,
+        28,
         mx,
         my,
         () -> {
@@ -224,18 +277,22 @@ public final class FluxScreen extends Screen {
     if (settingsVisible) renderSettings(g, sx, sy, mx, my, delta);
     if (focus >= 0 && focus < zones.size() && !popup()) {
       Zone z = zones.get(focus);
-      Ui.outline(g, z.x - 1, z.y - 1, z.w + 2, z.h + 2, 5, Ui.secondary());
+      Ui.outline(g, z.x - 1, z.y - 1, z.w + 2, z.h + 2, 6, Ui.secondary());
     }
-    if (!FluxTweaks.message.isBlank()) {
+    if (!lastMessage.equals(FluxTweaks.message)) {
+      lastMessage = FluxTweaks.message;
+      messageSince = System.nanoTime();
+    }
+    if (!FluxTweaks.message.isBlank() && System.nanoTime() - messageSince < 4_000_000_000L) {
       Ui.rounded(
           g,
           8,
-          logicalHeight - 23,
-          Math.min(logicalWidth - 16, Ui.width(FluxTweaks.message) + 18),
-          18,
-          6,
-          0xCC1A1A20);
-      Ui.text(g, Ui.fit(FluxTweaks.message, logicalWidth - 34), 17, logicalHeight - 17, Ui.MUTED);
+          logicalHeight - 30,
+          Math.min(logicalWidth - 16, Ui.width(FluxTweaks.message) + 24),
+          24,
+          7,
+          Ui.panel());
+      Ui.text(g, Ui.fit(FluxTweaks.message, logicalWidth - 40), 20, logicalHeight - 22, Ui.WHITE);
     }
     if (popup()) {
       g.nextStratum();
@@ -244,91 +301,99 @@ public final class FluxScreen extends Screen {
     g.pose().popMatrix();
   }
 
+  private void select(Feature f) {
+    selected = f;
+    theme = false;
+    settingsVisible = true;
+    settingsScroll = 0;
+    motion.snap("scroll", 0);
+    binding = false;
+    focus = -1;
+    FluxTweaks.config.layout.selected = f.id;
+    FluxTweaks.changed();
+  }
+
   private void renderSettings(GuiGraphics g, int x, int y, int mx, int my, float delta) {
-    Ui.rounded(g, x, y, 260, settingsHeight, 13, Ui.panel());
-    Ui.outline(g, x, y, 260, settingsHeight, 13, 0x12FFFFFF);
-    Ui.title(g, theme ? "Theme" : selected.title, x + 16, y + 18, Ui.WHITE);
+    Ui.surface(g, x, y, 320, settingsHeight);
+    Ui.titleRow(g, theme ? "Make it yours" : selected.title, x + 20, y + 17, 22, Ui.WHITE);
+    Ui.text(
+        g,
+        Ui.fit(theme ? "Colors, scale and your workspace." : featureHint(), 278),
+        x + 20,
+        y + 46,
+        Ui.MUTED);
     zone(
         "Move settings panel",
         x,
         y,
-        227,
-        43,
+        278,
+        62,
         () -> {
           dragPanel = 2;
           dragOffsetX = mx - x;
           dragOffsetY = my - y;
         });
-    float closeHover = motion.value("close", Ui.inside(mx, my, x + 228, y + 9, 25, 25) ? 1 : 0);
-    Ui.rounded(g, x + 230, y + 11, 21, 21, 6, Ui.alpha(0xffffff, closeHover * .06f));
-    Ui.close(g, x + 238, y + 19, Ui.MUTED);
-    zone("Close settings panel", x + 228, y + 9, 25, 25, () -> settingsVisible = false);
-    int top = y + 44;
+    float hover = motion.value("close", Ui.inside(mx, my, x + 280, y + 12, 28, 28) ? 1 : 0);
+    Ui.rounded(g, x + 280, y + 12, 28, 28, 7, Ui.alpha(0xffffff, hover * .08f));
+    Ui.close(g, x + 291, y + 23, Ui.MUTED);
+    zone("Close settings panel", x + 280, y + 12, 28, 28, () -> settingsVisible = false);
+    int top = y + 76;
     if (!theme) {
-      Ui.text(g, "Enabled", x + 16, top + 4, Ui.MUTED);
-      Ui.toggle(
-          g,
-          x + 217,
-          top,
-          motion.value(selected.id + ".enabled", FluxTweaks.active(selected) ? 1 : 0));
+      boolean on = FluxTweaks.active(selected);
+      Ui.rounded(g, x + 16, top, 288, 38, 8, Ui.inset());
+      Ui.row(g, on ? "Enabled" : "Disabled", x + 28, top, 38, Ui.WHITE);
+      Ui.toggle(g, x + 265, top + 12, motion.value(selected.id + ".enabled", on ? 1 : 0));
       zone(
           "Toggle " + selected.title,
-          x + 12,
-          top - 3,
-          236,
-          24,
+          x + 16,
+          top,
+          288,
+          38,
           () -> FluxTweaks.setEnabled(selected, !FluxTweaks.active(selected)));
-      Ui.text(g, "Keybind", x + 16, top + 35, Ui.MUTED);
+      top += 46;
+      Ui.row(g, "Keybind", x + 20, top, 30, Ui.MUTED);
       String key =
           binding
               ? "Press a key…"
               : FluxTweaks.keys.get(selected).getTranslatedKeyMessage().getString();
-      Ui.right(g, Ui.fit(key, 135), x + 244, top + 35, binding ? Ui.primary() : Ui.WHITE);
+      Ui.rounded(g, x + 148, top, 156, 30, 7, Ui.inset());
+      Ui.outline(g, x + 148, top, 156, 30, 7, binding ? Ui.secondary() : 0x20FFFFFF);
+      Ui.right(g, Ui.fit(key, 136), x + 294, top + 10, binding ? Ui.secondary() : Ui.WHITE);
       zone(
           "Set " + selected.title + " keybind",
-          x + 12,
-          top + 26,
-          236,
-          28,
+          x + 148,
+          top,
+          156,
+          30,
           () -> {
             binding = true;
             search.setFocused(false);
           });
-      top += 59;
-      String hint = featureHint();
-      if (!hint.isBlank()) {
-        Ui.text(g, Ui.fit(hint, 228), x + 16, top, Ui.MUTED);
-        top += 23;
-      }
+      top += 48;
     }
     contentTop = top;
-    contentBottom = y + settingsHeight - 12;
+    contentBottom = y + settingsHeight - 16;
     List<Entry> entries = entries();
     int total = entries.stream().mapToInt(e -> rowHeight(e.setting)).sum();
     settingsScroll =
         Math.clamp(settingsScroll, 0, Math.max(0, total - (contentBottom - contentTop)));
-    g.enableScissor(x + 9, contentTop, x + 251, contentBottom);
-    int scroll = Math.round(motion.value("scroll", settingsScroll));
-    int row = contentTop - scroll;
+    g.enableScissor(x + 12, contentTop, x + 308, contentBottom);
+    int scroll = Math.round(motion.value("scroll", settingsScroll, 140)), row = contentTop - scroll;
+    if (entries.isEmpty()) {
+      Ui.text(g, "Ready when you are.", x + 20, top + 20, Ui.WHITE);
+      Ui.text(g, "Enable this feature or assign a shortcut.", x + 20, top + 42, Ui.MUTED);
+    }
     for (Entry entry : entries) {
       int h = rowHeight(entry.setting);
       if (row + h > contentTop && row < contentBottom)
-        renderEntry(g, entry, x + 16, row, 228, mx, my);
+        renderEntry(g, entry, x + 20, row, 280, mx, my);
       row += h;
     }
     g.disableScissor();
     if (total > contentBottom - contentTop) {
-      int track = contentBottom - contentTop;
-      int thumb = Math.max(18, track * track / total);
+      int track = contentBottom - contentTop, thumb = Math.max(20, track * track / total);
       int offset = (int) ((track - thumb) * scroll / (double) Math.max(1, total - track));
-      Ui.rounded(
-          g,
-          x + 253,
-          contentTop + offset,
-          2,
-          thumb,
-          1,
-          Ui.alpha(FluxTweaks.config.theme.secondary, .65f));
+      Ui.rounded(g, x + 311, contentTop + offset, 3, thumb, 1.5f, Ui.alpha(0xffffff, .4f));
     }
   }
 
@@ -338,34 +403,50 @@ public final class FluxScreen extends Screen {
       return List.of(
           new Entry(
               Setting.color("primary", "Primary Color", c.theme.primary),
-              new JsonPrimitive(c.theme.primary),
+              () -> new JsonPrimitive(c.theme.primary),
               v -> {
                 c.theme.primary = v.getAsInt();
                 FluxTweaks.changed();
               }),
           new Entry(
               Setting.color("secondary", "Secondary Color", c.theme.secondary),
-              new JsonPrimitive(c.theme.secondary),
+              () -> new JsonPrimitive(c.theme.secondary),
               v -> {
                 c.theme.secondary = v.getAsInt();
                 FluxTweaks.changed();
               }),
           new Entry(
               Setting.color("background", "Background Color", c.theme.background),
-              new JsonPrimitive(c.theme.background),
+              () -> new JsonPrimitive(c.theme.background),
               v -> {
                 c.theme.background = v.getAsInt();
                 FluxTweaks.changed();
               }),
           new Entry(
               Setting.number("transparency", "Background Transparency", .08, 0, 1, .01, "%"),
-              new JsonPrimitive(1 - c.theme.opacity),
+              () -> new JsonPrimitive(1 - c.theme.opacity),
               v -> {
                 c.theme.opacity = 1 - v.getAsDouble();
                 FluxTweaks.changed();
               }),
           new Entry(
-              Setting.action("reset", "Reset Layout"), JsonNull.INSTANCE, v -> resetLayout()));
+              Setting.number("guiScale", "GUI Scale", 1, .5, 1.5, .01, "%"),
+              () -> new JsonPrimitive(c.theme.guiScale),
+              v -> {
+                c.theme.guiScale = v.getAsDouble();
+                FluxTweaks.changed();
+              }),
+          new Entry(
+              Setting.bool("reducedMotion", "Reduced Motion", false),
+              () -> new JsonPrimitive(c.theme.reducedMotion),
+              v -> {
+                c.theme.reducedMotion = v.getAsBoolean();
+                FluxTweaks.changed();
+              }),
+          new Entry(
+              Setting.action("reset", "Reset Layout"),
+              () -> JsonNull.INSTANCE,
+              v -> resetLayout()));
     }
     List<Entry> result = new ArrayList<>();
     Feature f = selected;
@@ -374,9 +455,10 @@ public final class FluxScreen extends Screen {
       result.add(
           new Entry(
               s,
-              s.kind() == Setting.Kind.HEADING || s.kind() == Setting.Kind.ACTION
-                  ? JsonNull.INSTANCE
-                  : FluxTweaks.config.value(f, s.key()),
+              () ->
+                  s.kind() == Setting.Kind.HEADING || s.kind() == Setting.Kind.ACTION
+                      ? JsonNull.INSTANCE
+                      : FluxTweaks.config.value(f, s.key()),
               v -> {
                 FluxTweaks.config.set(f, s.key(), v);
                 FluxTweaks.changed();
@@ -404,65 +486,79 @@ public final class FluxScreen extends Screen {
 
   private static int rowHeight(Setting s) {
     return switch (s.kind()) {
-      case BOOLEAN, COLOR, ACTION -> 32;
-      case NUMBER, RANGE -> 44;
-      case CHOICE -> 35 + s.choices().size() * 23;
-      case HEADING -> 33;
+      case BOOLEAN, COLOR, ACTION -> 42;
+      case NUMBER, RANGE -> 58;
+      case CHOICE -> 62;
+      case HEADING -> 42;
     };
   }
 
   private void renderEntry(GuiGraphics g, Entry e, int x, int y, int width, int mx, int my) {
     Setting s = e.setting;
+    if (s.kind() == Setting.Kind.BOOLEAN || s.kind() == Setting.Kind.COLOR) {
+      float hover =
+          motion.value(
+              "row." + (theme ? "theme" : selected.id) + s.key(),
+              Ui.inside(mx, my, x - 4, y, width + 8, 36) ? 1 : 0);
+      Ui.rounded(g, x - 6, y, width + 12, 36, 7, Ui.alpha(0xffffff, hover * .045f));
+    }
     switch (s.kind()) {
       case HEADING -> {
         g.fill(x, y + 5, x + width, y + 6, 0x18FFFFFF);
         Ui.title(g, s.label(), x, y + 16, Ui.WHITE);
       }
       case BOOLEAN -> {
-        Ui.text(g, s.label(), x, y + 8, Ui.MUTED);
+        Ui.row(g, s.label(), x, y, 36, Ui.MUTED);
         Ui.toggle(
             g,
             x + width - 27,
-            y + 5,
-            motion.value(selected.id + "." + s.key(), e.value.getAsBoolean() ? 1 : 0));
+            y + 11,
+            motion.value(selected.id + "." + s.key(), e.value().getAsBoolean() ? 1 : 0));
         clippedZone(
             s.label(),
             x - 3,
             y,
             width + 6,
-            28,
-            () -> e.setter.accept(new JsonPrimitive(!e.value.getAsBoolean())),
+            36,
+            () -> e.setter.accept(new JsonPrimitive(!e.value().getAsBoolean())),
             null);
       }
       case COLOR -> {
-        Ui.text(g, s.label(), x, y + 8, Ui.MUTED);
-        Ui.circle(g, x + width - 13, y + 7, 12, e.value.getAsInt() | 0xff000000);
-        Ui.outline(g, x + width - 13, y + 7, 12, 12, 6, 0x16FFFFFF);
+        Ui.row(g, s.label(), x, y, 36, Ui.MUTED);
+        Ui.right(
+            g,
+            String.format(Locale.ROOT, "#%06X", e.value().getAsInt() & 0xffffff),
+            x + width - 32,
+            Ui.textY(y, 36),
+            Ui.MUTED);
+        Ui.rounded(g, x + width - 22, y + 7, 22, 22, 6, e.value().getAsInt() | 0xff000000);
+        Ui.outline(g, x + width - 22, y + 7, 22, 22, 6, 0x50FFFFFF);
         clippedZone(
             s.label(),
             x - 3,
             y,
             width + 6,
-            28,
+            36,
             () ->
                 openColor(
                     s.label(),
-                    e.value.getAsInt(),
+                    e.value().getAsInt(),
                     color -> e.setter.accept(new JsonPrimitive(color))),
             null);
       }
       case NUMBER -> {
-        double n = e.value.getAsDouble();
-        Ui.text(g, s.label(), x, y + 5, Ui.MUTED);
+        double n = e.value().getAsDouble();
+        Ui.text(g, Ui.fit(s.label(), width - 102), x, y + 8, Ui.MUTED);
         String formatted = format(n, s);
-        Ui.right(g, formatted, x + width, y + 5, Ui.WHITE);
-        boolean percent = theme && s.key().equals("transparency");
+        Ui.rounded(g, x + width - 92, y, 92, 26, 6, Ui.inset());
+        Ui.right(g, formatted, x + width - 9, y + 8, Ui.WHITE);
+        boolean percent = theme && (s.key().equals("transparency") || s.key().equals("guiScale"));
         clippedZone(
             "Type " + s.label(),
             x + width - 84,
-            y - 1,
+            y,
             84,
-            18,
+            26,
             () ->
                 openEditor(
                     s.label() + (percent ? " (%)" : ""),
@@ -473,14 +569,14 @@ public final class FluxScreen extends Screen {
                       e.setter.accept(s.validate(new JsonPrimitive(percent ? typed / 100 : typed)));
                     }),
             null);
-        int barY = y + 29;
+        int barY = y + 38;
         float t = (float) ((n - s.min()) / (s.max() - s.min()));
         String key = selected.id + ".slider." + s.key();
         if (slider != null) motion.snap(key, t);
         else t = motion.value(key, t);
-        Ui.rounded(g, x, barY, width, 2.5f, 1.25f, Ui.inset());
-        Ui.rounded(g, x, barY, Math.max(0, width * t), 2.5f, 1.25f, Ui.primary());
-        thumb(g, x + width * t, barY + 1.25f, Ui.inside(mx, my, x, y + 18, width, 23));
+        Ui.rounded(g, x, barY, width, 4, 2, 0xFF64707D);
+        Ui.rounded(g, x, barY, Math.max(0, width * t), 4, 2, Ui.primary());
+        thumb(g, x + width * t, barY + 2, Ui.inside(mx, my, x, y + 28, width, 24));
         DoubleConsumer set =
             mouse ->
                 e.setter.accept(
@@ -488,24 +584,30 @@ public final class FluxScreen extends Screen {
                         s.bounded(
                             s.min()
                                 + Math.clamp((mouse - x) / width, 0, 1) * (s.max() - s.min()))));
-        clippedZone(s.label() + " slider", x, y + 20, width, 20, () -> set.accept(mx), set);
+        clippedZone(s.label() + " slider", x, y + 28, width, 24, () -> set.accept(mx), set);
+        adjustments.put(
+            s.label() + " slider",
+            direction ->
+                e.setter.accept(
+                    new JsonPrimitive(s.bounded(e.value().getAsDouble() + direction * s.step()))));
       }
       case RANGE -> {
-        var a = e.value.getAsJsonArray();
+        var a = e.value().getAsJsonArray();
         double lo = a.get(0).getAsDouble(), hi = a.get(1).getAsDouble();
-        Ui.text(g, s.label(), x, y + 5, Ui.MUTED);
+        Ui.text(g, Ui.fit(s.label(), width - 102), x, y + 8, Ui.MUTED);
+        Ui.rounded(g, x + width - 112, y, 112, 26, 6, Ui.inset());
         Ui.right(
             g,
             String.format(Locale.ROOT, "%.0f – %.0f %s", lo, hi, s.unit()),
-            x + width,
-            y + 5,
+            x + width - 9,
+            y + 8,
             Ui.WHITE);
         clippedZone(
             "Type " + s.label() + " range",
             x + width - 112,
-            y - 1,
+            y,
             112,
-            18,
+            26,
             () ->
                 openEditor(
                     s.label() + " (min, max)",
@@ -519,51 +621,59 @@ public final class FluxScreen extends Screen {
                       e.setter.accept(s.validate(range));
                     }),
             null);
-        int by = y + 29;
+        int by = y + 38;
         float l = (float) ((lo - s.min()) / (s.max() - s.min())),
             h = (float) ((hi - s.min()) / (s.max() - s.min()));
-        Ui.rounded(g, x, by, width, 2.5f, 1.25f, Ui.inset());
-        Ui.rounded(g, x + l * width, by, Math.max(0, (h - l) * width), 2.5f, 1.25f, Ui.primary());
-        thumb(g, x + l * width, by + 1.25f, Ui.inside(mx, my, x, y + 18, width, 23));
-        thumb(g, x + h * width, by + 1.25f, Ui.inside(mx, my, x, y + 18, width, 23));
-        boolean left = Math.abs(mx - (x + l * width)) <= Math.abs(mx - (x + h * width));
+        Ui.rounded(g, x, by, width, 4, 2, 0xFF64707D);
+        Ui.rounded(g, x + l * width, by, Math.max(0, (h - l) * width), 4, 2, Ui.primary());
+        thumb(g, x + l * width, by + 2, Ui.inside(mx, my, x, y + 28, width, 24));
+        thumb(g, x + h * width, by + 2, Ui.inside(mx, my, x, y + 28, width, 24));
+        int[] handle = {-1};
         DoubleConsumer set =
             mouse -> {
+              var current = e.value().getAsJsonArray();
+              double low = current.get(0).getAsDouble(), high = current.get(1).getAsDouble();
+              if (handle[0] == -1) {
+                double point =
+                    s.min() + Math.clamp((mouse - x) / width, 0, 1) * (s.max() - s.min());
+                handle[0] = Math.abs(point - low) <= Math.abs(point - high) ? 0 : 1;
+              }
+              boolean left = handle[0] == 0;
               double n =
                   s.bounded(s.min() + Math.clamp((mouse - x) / width, 0, 1) * (s.max() - s.min()));
               JsonArray next = new JsonArray();
-              next.add(left ? Math.min(n, hi) : lo);
-              next.add(left ? hi : Math.max(n, lo));
+              next.add(left ? Math.min(n, high) : low);
+              next.add(left ? high : Math.max(n, low));
               e.setter.accept(next);
             };
-        clippedZone(s.label() + " range slider", x, y + 20, width, 20, () -> set.accept(mx), set);
+        clippedZone(s.label() + " range slider", x, y + 28, width, 24, () -> set.accept(mx), set);
       }
       case CHOICE -> {
-        Ui.text(g, s.label(), x, y + 5, Ui.MUTED);
-        Ui.rounded(g, x, y + 23, width, s.choices().size() * 23 + 4, 11, Ui.inset());
-        int yy = y + 29;
-        for (String option : s.choices()) {
-          int row = yy;
-          boolean on = option.equals(e.value.getAsString());
-          if (Ui.inside(mx, my, x + 5, row - 1, width - 10, 22))
-            Ui.rounded(g, x + 5, row - 1, width - 10, 22, 5, 0x0DFFFFFF);
-          if (on) Ui.check(g, x + 12, row + 6, Ui.WHITE);
-          Ui.text(g, option, x + 31, row + 4, on ? Ui.WHITE : Ui.MUTED);
-          clippedZone(
-              s.label() + ": " + option,
-              x + 5,
-              row - 1,
-              width - 10,
-              22,
-              () -> e.setter.accept(new JsonPrimitive(option)),
-              null);
-          yy += 23;
-        }
+        Ui.text(g, s.label(), x, y + 4, Ui.MUTED);
+        Ui.rounded(g, x, y + 23, width, 30, 7, Ui.inset());
+        Ui.outline(g, x, y + 23, width, 30, 7, 0x25FFFFFF);
+        Ui.row(g, e.value().getAsString(), x + 12, y + 23, 30, Ui.WHITE);
+        Ui.chevron(g, x + width - 20, y + 36, false, Ui.MUTED);
+        clippedZone(
+            s.label() + " choices",
+            x,
+            y + 23,
+            width,
+            30,
+            () -> {
+              savedFocus = focus;
+              choiceEntry = e;
+              choiceFocus = Math.max(0, s.choices().indexOf(e.value().getAsString()));
+              search.setFocused(false);
+              binding = false;
+              motion.snap("popup", 0);
+            },
+            null);
       }
       case ACTION -> {
-        Ui.rounded(g, x, y + 2, width, 24, 7, Ui.inset());
-        Ui.text(g, s.label(), x + 10, y + 10, Ui.WHITE);
-        clippedZone(s.label(), x, y, width, 29, () -> action(s.key()), null);
+        Ui.rounded(g, x, y + 2, width, 32, 7, Ui.inset());
+        Ui.row(g, s.label(), x + 12, y + 2, 32, Ui.WHITE);
+        clippedZone(s.label(), x, y, width, 36, () -> action(s.key()), null);
       }
     }
   }
@@ -572,11 +682,11 @@ public final class FluxScreen extends Screen {
     float amount = hover ? 1 : 0;
     if (amount > 0)
       Ui.circle(g, x - 7, y - 7, 14, Ui.alpha(FluxTweaks.config.theme.primary, .14f * amount));
-    Ui.circle(g, x - 4.1f, y - 4.1f, 8.2f, Ui.WHITE);
+    Ui.circle(g, x - 5, y - 5, 10, Ui.WHITE);
   }
 
   private String format(double n, Setting s) {
-    if (theme && s.key().equals("transparency"))
+    if (theme && (s.key().equals("transparency") || s.key().equals("guiScale")))
       return String.format(Locale.ROOT, "%.0f%%", n * 100);
     String number =
         s.step() >= 1
@@ -600,10 +710,12 @@ public final class FluxScreen extends Screen {
   }
 
   private void resetLayout() {
+    FluxTweaks.config.theme.guiScale = 1;
+    updateViewport();
     var p = FluxTweaks.config.layout;
     p.navX = 16;
     p.navY = 16;
-    p.settingsX = 198;
+    p.settingsX = 218;
     p.settingsY = 16;
     p.hudX = .03;
     p.hudY = .78;
@@ -615,33 +727,60 @@ public final class FluxScreen extends Screen {
       GuiGraphics g, String text, int x, int y, int w, int h, int mx, int my, Runnable action) {
     float hover = motion.value("button." + text, Ui.inside(mx, my, x, y, w, h) ? 1 : 0);
     Ui.rounded(g, x, y, w, h, 6, Ui.alpha(0xffffff, hover * .06f));
-    Ui.text(g, text, x + 7, y + 7, Ui.MUTED);
+    Ui.row(g, text, x + 10, y, h, Ui.MUTED);
     zone(text, x, y, w, h, action);
   }
 
   private boolean popup() {
-    return editor != null;
+    return editor != null || choiceEntry != null;
   }
 
   private int popupX() {
     return (logicalWidth - 236) / 2;
   }
 
+  private int popupHeight() {
+    return choiceEntry != null
+        ? 64 + choiceEntry.setting.choices().size() * 28
+        : colorPopup ? 280 : 160;
+  }
+
   private int popupY() {
-    return (logicalHeight - (colorPopup ? 230 : 98)) / 2;
+    return (logicalHeight - popupHeight()) / 2;
+  }
+
+  private void closePopup() {
+    editor = null;
+    choiceEntry = null;
+    focus = savedFocus;
+  }
+
+  private void applyPopup() {
+    try {
+      if (colorPopup) {
+        String hex = editor.getValue().trim().replace("#", "");
+        if (hex.length() != 6) throw new IllegalArgumentException();
+        colorCommit.accept(Integer.parseInt(hex, 16));
+      } else editCommit.accept(editor.getValue());
+      closePopup();
+    } catch (RuntimeException ex) {
+      error = colorPopup ? "Enter six hex digits" : "Enter a valid number or range";
+    }
   }
 
   private void openEditor(String title, String initial, Consumer<String> commit) {
     colorPopup = false;
     editTitle = title;
     editCommit = commit;
-    createEditor(initial, popupX() + 14, popupY() + 35, 208);
+    createEditor(initial, popupX() + 14, popupY() + 33, 208);
   }
 
   private void createEditor(String initial, int x, int y, int w) {
+    savedFocus = focus;
     search.setFocused(false);
     binding = false;
-    editor = Ui.input(x, y, w, 22, editTitle);
+    motion.snap("popup", 0);
+    editor = Ui.input(x, y, w, 25, editTitle);
     editor.setMaxLength(128);
     editor.setValue(initial);
     editor.setFocused(true);
@@ -658,7 +797,7 @@ public final class FluxScreen extends Screen {
     saturation = hsb[1];
     value = hsb[2];
     createEditor(
-        String.format(Locale.ROOT, "#%06X", rgb & 0xFFFFFF), popupX() + 14, popupY() + 176, 208);
+        String.format(Locale.ROOT, "#%06X", rgb & 0xFFFFFF), popupX() + 14, popupY() + 174, 208);
     editor.setResponder(
         text -> {
           try {
@@ -672,8 +811,30 @@ public final class FluxScreen extends Screen {
   private void renderPopup(GuiGraphics g, int mx, int my, float delta) {
     g.fill(0, 0, logicalWidth, logicalHeight, 0x60000000);
     int x = popupX(), y = popupY();
-    Ui.rounded(g, x, y, 236, colorPopup ? 230 : 98, 12, 0xFF29292F);
-    Ui.title(g, editTitle, x + 14, y + 14, Ui.WHITE);
+    Ui.surface(g, x, y, 236, popupHeight());
+    float arrival = motion.value("popup", 1, 160);
+    Ui.outline(
+        g,
+        x,
+        y,
+        236,
+        popupHeight(),
+        12,
+        Ui.alpha(FluxTweaks.config.theme.secondary, arrival * .4f));
+    if (choiceEntry != null) {
+      Ui.title(g, choiceEntry.setting.label(), x + 14, y + 16, Ui.WHITE);
+      for (int i = 0; i < choiceEntry.setting.choices().size(); i++) {
+        String option = choiceEntry.setting.choices().get(i);
+        int row = y + 48 + i * 28;
+        boolean on = option.equals(choiceEntry.value().getAsString());
+        if (choiceFocus == i || Ui.inside(mx, my, x + 8, row, 220, 28))
+          Ui.rounded(g, x + 8, row, 220, 28, 6, Ui.raised());
+        if (on) Ui.check(g, x + 17, row + 10, Ui.secondary());
+        Ui.row(g, option, x + 36, row, 28, on ? Ui.WHITE : Ui.MUTED);
+      }
+      return;
+    }
+    Ui.title(g, Ui.fitTitle(editTitle, 208), x + 14, y + 14, Ui.WHITE);
     if (colorPopup) {
       int rgb = Color.HSBtoRGB(hue, 1, 1);
       SmoothGui.box(g, SmoothGui.SATURATION_VALUE, x + 14, y + 36, 192, 120, 5, rgb);
@@ -688,10 +849,15 @@ public final class FluxScreen extends Screen {
     editor.render(g, mx, my, delta);
     Ui.text(
         g,
-        error.isBlank() ? "Enter to apply · Esc to close" : error,
+        error.isBlank() ? "Enter to apply · Esc to return" : error,
         x + 14,
-        y + (colorPopup ? 211 : 76),
-        error.isBlank() ? Ui.MUTED : 0xFFFF7777);
+        y + (colorPopup ? 210 : 76),
+        error.isBlank() ? Ui.MUTED : 0xFFFFB4AB);
+    int by = y + popupHeight() - 42;
+    Ui.rounded(g, x + 12, by, 100, 30, 7, Ui.inset());
+    Ui.centered(g, "Close", x + 12, by, 100, 30, Ui.MUTED);
+    Ui.rounded(g, x + 124, by, 100, 30, 7, Ui.alpha(FluxTweaks.config.theme.primary, .28f));
+    Ui.centered(g, "Apply", x + 124, by, 100, 30, Ui.WHITE);
   }
 
   private boolean picker(double mx, double my) {
@@ -718,12 +884,37 @@ public final class FluxScreen extends Screen {
 
   @Override
   public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
-    double mx = event.x() / scale, my = event.y() / scale;
+    double mx = event.x() / scale, my = event.y() / scale - screenOffset;
+    if (closing) return true;
     if (binding) {
       bind(InputConstants.Type.MOUSE.getOrCreate(event.button()));
       return true;
     }
     if (popup()) {
+      if (choiceEntry != null) {
+        int row = (int) Math.floor((my - popupY() - 48) / 28);
+        if (event.button() == 0
+            && Ui.inside(
+                mx,
+                my,
+                popupX() + 8,
+                popupY() + 48,
+                220,
+                choiceEntry.setting.choices().size() * 28)) {
+          choiceEntry.setter.accept(new JsonPrimitive(choiceEntry.setting.choices().get(row)));
+          closePopup();
+        }
+        return true;
+      }
+      int by = popupY() + popupHeight() - 42;
+      if (Ui.inside(mx, my, popupX() + 12, by, 100, 30)) {
+        closePopup();
+        return true;
+      }
+      if (Ui.inside(mx, my, popupX() + 124, by, 100, 30)) {
+        applyPopup();
+        return true;
+      }
       if (event.button() == 0 && picker(mx, my)) return true;
       editor.mouseClicked(new MouseButtonEvent(mx, my, event.buttonInfo()), twice);
       return true;
@@ -739,7 +930,8 @@ public final class FluxScreen extends Screen {
       if (Ui.inside(mx, my, z.x, z.y, z.w, z.h)) {
         focus = i;
         slider = z.drag != null ? z : null;
-        z.click.run();
+        if (z.drag != null) z.drag.accept(mx);
+        else z.click.run();
         return true;
       }
     }
@@ -749,9 +941,9 @@ public final class FluxScreen extends Screen {
 
   @Override
   public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
-    double mx = event.x() / scale, my = event.y() / scale;
+    double mx = event.x() / scale, my = event.y() / scale - screenOffset;
     if (popup()) {
-      picker(mx, my);
+      if (choiceEntry == null) picker(mx, my);
       return true;
     }
     if (dragPanel != 0) {
@@ -784,11 +976,11 @@ public final class FluxScreen extends Screen {
   @Override
   public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
     if (popup()) return true;
-    double mx = x / scale, my = y / scale;
+    double mx = x / scale, my = y / scale - screenOffset;
     var p = FluxTweaks.config.layout;
-    if (settingsVisible && Ui.inside(mx, my, p.settingsX, p.settingsY, 260, settingsHeight))
+    if (settingsVisible && Ui.inside(mx, my, p.settingsX, p.settingsY, 320, settingsHeight))
       settingsScroll = Math.max(0, settingsScroll - (int) (vertical * 30));
-    else if (Ui.inside(mx, my, p.navX, p.navY, 170, navHeight))
+    else if (Ui.inside(mx, my, p.navX, p.navY, 190, navHeight))
       navScroll = Math.max(0, navScroll - (int) (vertical * 25));
     return true;
   }
@@ -805,22 +997,28 @@ public final class FluxScreen extends Screen {
                 : InputConstants.getKey(event));
       return true;
     }
+    if (closing) return true;
     if (popup()) {
       if (key == GLFW.GLFW_KEY_ESCAPE) {
-        editor = null;
+        closePopup();
+        return true;
+      }
+      if (choiceEntry != null) {
+        int direction = key == GLFW.GLFW_KEY_UP ? -1 : key == GLFW.GLFW_KEY_DOWN ? 1 : 0;
+        if (direction != 0 || key == GLFW.GLFW_KEY_TAB) {
+          choiceFocus =
+              Math.floorMod(
+                  choiceFocus + (direction == 0 ? 1 : direction),
+                  choiceEntry.setting.choices().size());
+        } else if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_SPACE) {
+          choiceEntry.setter.accept(
+              new JsonPrimitive(choiceEntry.setting.choices().get(choiceFocus)));
+          closePopup();
+        }
         return true;
       }
       if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
-        try {
-          if (colorPopup) {
-            String hex = editor.getValue().trim().replace("#", "");
-            if (hex.length() != 6) throw new IllegalArgumentException();
-            colorCommit.accept(Integer.parseInt(hex, 16));
-          } else editCommit.accept(editor.getValue());
-          editor = null;
-        } catch (RuntimeException ex) {
-          error = colorPopup ? "Enter six hex digits" : "Enter a valid number or range";
-        }
+        applyPopup();
         return true;
       }
       return editor.keyPressed(event);
@@ -859,11 +1057,21 @@ public final class FluxScreen extends Screen {
       zones.get(focus).click.run();
       return true;
     }
+    if ((key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)
+        && focus >= 0
+        && focus < zones.size()) {
+      IntConsumer adjust = adjustments.get(zones.get(focus).label);
+      if (adjust != null) {
+        adjust.accept(key == GLFW.GLFW_KEY_LEFT ? -1 : 1);
+        return true;
+      }
+    }
     return super.keyPressed(event);
   }
 
   @Override
   public boolean charTyped(CharacterEvent event) {
+    if (choiceEntry != null || closing) return true;
     if (editor != null) return editor.charTyped(event);
     return search.charTyped(event);
   }
@@ -884,7 +1092,7 @@ public final class FluxScreen extends Screen {
   @Override
   public void onClose() {
     FluxTweaks.save();
-    minecraft.setScreen(null);
+    closing = true;
   }
 
   @Override

@@ -31,6 +31,8 @@ class ConfigStoreTest {
     config.module(Feature.FREELOOK).enabled = true;
     config.module(Feature.FREECAM).enabled = true;
     config.theme.primary = 0x123456;
+    config.theme.reducedMotion = true;
+    config.theme.guiScale = 1.25;
     config.layout.hudX = .4;
     config.set(Feature.HIT_PARTICLES, "shape", new JsonPrimitive("Ghosts"));
     store.save(config);
@@ -44,6 +46,8 @@ class ConfigStoreTest {
     assertFalse(loaded.enabled(Feature.FREELOOK));
     assertFalse(loaded.enabled(Feature.FREECAM));
     assertEquals(0x123456, loaded.theme.primary);
+    assertTrue(loaded.theme.reducedMotion);
+    assertEquals(1.25, loaded.theme.guiScale);
     assertEquals(.4, loaded.layout.hudX);
     assertEquals("Ghosts", loaded.text(Feature.HIT_PARTICLES, "shape"));
     try (var files = Files.list(directory)) {
@@ -138,5 +142,21 @@ class ConfigStoreTest {
     config.sanitize();
     for (Feature feature : Feature.values()) assertNotNull(config.module(feature));
     assertEquals("Hold", Settings.find(Feature.FREELOOK, "activation").choices().get(1));
+  }
+
+  @Test
+  void oldThemeReceivesDefaultGuiScaleAndInvalidScalesRecover() throws Exception {
+    Path file = directory.resolve("old-theme.json");
+    Files.writeString(
+        file, "{\"schemaVersion\":1,\"theme\":{\"primary\":1193046,\"opacity\":0.8}}");
+    var config = new ConfigStore(file).load();
+    assertEquals(1, config.theme.guiScale);
+    assertEquals(0x123456, config.theme.primary);
+    config.theme.guiScale = Double.NaN;
+    config.sanitize();
+    assertEquals(1, config.theme.guiScale);
+    config.theme.guiScale = 50;
+    config.sanitize();
+    assertEquals(1.5, config.theme.guiScale);
   }
 }

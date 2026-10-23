@@ -5,6 +5,9 @@ in vec4 vertexColor;
 flat in vec2 halfSize;
 flat in float radius;
 out vec4 fragColor;
+#ifdef COVER
+uniform sampler2D Sampler0;
+#endif
 void main() {
     vec2 q = abs(local) - halfSize + radius;
     float distance = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
@@ -27,6 +30,9 @@ void main() {
 #endif
 #ifdef HUE
     color.rgb = clamp(abs(fract(vertical + vec3(0.0, 2.0/3.0, 1.0/3.0))*6.0-3.0)-1.0, 0.0, 1.0);
+#endif
+#ifdef COVER
+    color *= texture(Sampler0, (local + halfSize) / (2.0 * halfSize));
 #endif
     fragColor = vec4(color.rgb, color.a * coverage) * ColorModulator;
 }

@@ -1,0 +1,5 @@
+# Keep the vendored toolkit byte-identical to its SHA-256 manifest on Windows.
+.agents/skills/minecraft-gui/** -text
+# The installer hashes its managed instructions block, including line endings.
+/AGENTS.md text eol=lf
+/gui-toolkit.lock.json text eol=lf

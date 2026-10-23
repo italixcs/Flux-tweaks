@@ -24,14 +24,16 @@ public final class FluxClientTest implements FabricClientGameTest {
     context.runOnClient(
         mc -> {
           FluxTweaks.config = new FluxConfig();
+          FluxTweaks.message = "";
           mc.options.guiScale().set(2);
           mc.resizeDisplay();
         });
     context.setScreen(FluxScreen::new);
     context.waitForScreen(FluxScreen.class);
     context.waitTicks(5);
-    context.takeScreenshot("flux-gui-default");
+    GuiPolishAcceptance.alignment(context, context.takeScreenshot("flux-gui-default"));
     GuiAcceptance.run(context);
+    GuiPolishAcceptance.scaleChecks(context);
     context.runOnClient(
         mc -> {
           float scale = scale(mc);
@@ -80,7 +82,13 @@ public final class FluxClientTest implements FabricClientGameTest {
               check(
                   FluxTweaks.active(Feature.HAND_CHAMS),
                   "Hand Chams disabled after a rendering error"));
-      context.takeScreenshot("flux-hands-shield");
+      context.runOnClient(mc -> FluxTweaks.setEnabled(Feature.HAND_CHAMS, false));
+      context.waitTicks(3);
+      Path vanillaHands = context.takeScreenshot("flux-hands-vanilla");
+      context.runOnClient(mc -> FluxTweaks.setEnabled(Feature.HAND_CHAMS, true));
+      context.waitTicks(3);
+      Path chamsHands = context.takeScreenshot("flux-hands-shield");
+      checkChamsCapture(vanillaHands, chamsHands);
       context.getInput().pressKey(GLFW.GLFW_KEY_RIGHT_SHIFT);
       context.waitForScreen(FluxScreen.class);
       context.waitTicks(5);
@@ -158,6 +166,7 @@ public final class FluxClientTest implements FabricClientGameTest {
       context.setScreen(() -> new HudEditorScreen(new FluxScreen()));
       context.waitTicks(4);
       context.takeScreenshot("flux-hud-editor");
+      GuiPolishAcceptance.spotify(context);
       context.setScreen(() -> null);
       pngChecks(context);
       for (String style : List.of("Default", "Glowing", "Custom")) {
@@ -187,6 +196,36 @@ public final class FluxClientTest implements FabricClientGameTest {
           FluxTweaks.config = new FluxConfig();
           FluxTweaks.save();
         });
+  }
+
+  private static void checkChamsCapture(Path before, Path after) {
+    try {
+      var a = javax.imageio.ImageIO.read(before.toFile());
+      var b = javax.imageio.ImageIO.read(after.toFile());
+      int x = a.getWidth() / 2, y = a.getHeight() / 4;
+      int skyA = a.getRGB(x, y), skyB = b.getRGB(x, y);
+      int difference =
+          Math.abs((skyA >> 16 & 255) - (skyB >> 16 & 255))
+              + Math.abs((skyA >> 8 & 255) - (skyB >> 8 & 255))
+              + Math.abs((skyA & 255) - (skyB & 255));
+      check(difference < 30, "Hand Chams replaced the world background");
+      int outline = 0;
+      for (int py = a.getHeight() / 3; py < a.getHeight() - 40; py++)
+        for (int px = 0; px < a.getWidth(); px++) {
+          int old = a.getRGB(px, py), color = b.getRGB(px, py);
+          int gain =
+              (color >> 16 & 255)
+                  + (color >> 8 & 255)
+                  + (color & 255)
+                  - (old >> 16 & 255)
+                  - (old >> 8 & 255)
+                  - (old & 255);
+          if (gain > 120 && (color >> 8 & 255) > 160 && (color & 255) > 170) outline++;
+        }
+      check(outline > 100, "Hand Chams did not add a visible outline");
+    } catch (java.io.IOException ex) {
+      throw new AssertionError(ex);
+    }
   }
 
   private static void itemChecks(ClientGameTestContext context, TestSingleplayerContext world) {

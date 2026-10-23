@@ -12,10 +12,12 @@ public final class FluxConfig {
   public static class Theme {
     public int primary = 0x9B3DFF, secondary = 0x00AFD8, background = 0x2B2D2D;
     public double opacity = .92;
+    public double guiScale = 1;
+    public boolean reducedMotion;
   }
 
   public static class Layout {
-    public double navX = 16, navY = 20, settingsX = 198, settingsY = 20, hudX = .03, hudY = .78;
+    public double navX = 16, navY = 20, settingsX = 218, settingsY = 20, hudX = .03, hudY = .78;
     public String selected = "hand_chams";
   }
 
@@ -33,12 +35,13 @@ public final class FluxConfig {
     if (layout == null) layout = new Layout();
     if (modules == null) modules = new LinkedHashMap<>();
     theme.opacity = Double.isFinite(theme.opacity) ? Math.clamp(theme.opacity, 0, 1) : .92;
+    theme.guiScale = dev.fluxtweaks.gui.GuiLayout.preference(theme.guiScale);
     theme.primary &= 0xFFFFFF;
     theme.secondary &= 0xFFFFFF;
     theme.background &= 0xFFFFFF;
     layout.navX = finite(layout.navX, 16);
     layout.navY = finite(layout.navY, 20);
-    layout.settingsX = finite(layout.settingsX, 198);
+    layout.settingsX = finite(layout.settingsX, 218);
     layout.settingsY = finite(layout.settingsY, 20);
     layout.hudX = Math.clamp(finite(layout.hudX, .03), 0, 1);
     layout.hudY = Math.clamp(finite(layout.hudY, .78), 0, 1);

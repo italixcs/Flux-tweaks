@@ -9,7 +9,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
@@ -18,7 +17,7 @@ public final class SpotifyHud implements AutoCloseable {
 
   private record Button(int command, float x, String label) {}
 
-  public static final int WIDTH = 242, HEIGHT = 98;
+  public static final int WIDTH = 260, HEIGHT = 136;
   private static final Identifier COVER = FluxTweaks.id("spotify_cover");
   private final List<Button> buttons = new ArrayList<>();
   private final ExecutorService artworkWorker =
@@ -31,7 +30,10 @@ public final class SpotifyHud implements AutoCloseable {
   private volatile String requestedKey = "";
   private boolean hasArtwork;
   private volatile boolean closed;
-  private int artworkWidth = 1, artworkHeight = 1;
+  private final Ui.Motion motion = new Ui.Motion();
+  private long pressedUntil;
+  private int pressedCommand = -1;
+  private static final int BUTTON_Y = 94, BUTTON_W = 32, BUTTON_H = 28;
 
   public Bounds bounds() {
     Minecraft mc = Minecraft.getInstance();
@@ -65,67 +67,67 @@ public final class SpotifyHud implements AutoCloseable {
     g.pose().pushMatrix();
     g.pose().translate(box.x, box.y);
     g.pose().scale(box.scale, box.scale);
-    Ui.rounded(g, 0, 0, WIDTH, HEIGHT, 12, Ui.panel());
-    Ui.rounded(g, 10, 10, 43, 43, 6, Ui.inset());
-    if (hasArtwork && track.available())
-      g.blit(
-          RenderPipelines.GUI_TEXTURED,
-          COVER,
-          10,
-          10,
-          0,
-          0,
-          43,
-          43,
-          artworkWidth,
-          artworkHeight,
-          artworkWidth,
-          artworkHeight);
-    else {
-      Ui.text(g, "♫", 24, 27, Ui.secondary());
-    }
+    Ui.surface(g, 0, 0, WIDTH, HEIGHT);
+    Ui.rounded(g, 14, 14, 48, 48, 8, Ui.inset());
+    if (hasArtwork && track.available()) SmoothGui.image(g, COVER, 14, 14, 48, 8);
+    else Ui.centered(g, "♫", 14, 14, 48, 48, Ui.secondary());
+    Ui.outline(g, 14, 14, 48, 48, 8, 0x20FFFFFF);
     Ui.text(
         g,
         Ui.fit(
-            track.available() ? safe(track.title(), "Unknown track") : "Spotify HUD preview", 160),
-        65,
-        15,
+            track.available() ? safe(track.title(), "Unknown track") : "Spotify HUD preview", 170),
+        76,
+        18,
         Ui.WHITE);
     Ui.text(
         g,
         Ui.fit(
             track.available() ? safe(track.artist(), "Unknown artist") : "Spotify desktop app",
-            160),
-        65,
-        30,
+            170),
+        76,
+        35,
         Ui.MUTED);
+    Ui.circle(g, 76, 54, 4, track.available() && track.playing() ? Ui.secondary() : Ui.MUTED);
     Ui.text(
         g,
-        track.available() ? (track.playing() ? "Playing" : "Paused") : "Drag to reposition",
-        65,
-        44,
+        track.available() ? (track.playing() ? "Playing" : "Paused") : "Preview",
+        86,
+        51,
         Ui.MUTED);
     long duration = track.available() ? track.duration() : 240000,
         position = track.available() ? frame.position() : 85000;
-    Ui.text(g, time(position), 12, 61, Ui.MUTED);
-    Ui.right(g, time(duration), WIDTH - 12, 61, Ui.MUTED);
-    int barX = 43, barWidth = WIDTH - 86;
-    Ui.rounded(g, barX, 64, barWidth, 3, 2, Ui.inset());
+    Ui.text(g, time(position), 14, 70, Ui.MUTED);
+    Ui.right(g, time(duration), WIDTH - 14, 70, Ui.MUTED);
+    int barX = 14, barWidth = WIDTH - 28;
+    Ui.rounded(g, barX, 84, barWidth, 4, 2, Ui.inset());
     Ui.rounded(
         g,
         barX,
-        64,
-        Math.max(2, (int) (barWidth * Math.clamp(position / (double) Math.max(1, duration), 0, 1))),
-        3,
+        84,
+        (float) (barWidth * Math.clamp(position / (double) Math.max(1, duration), 0, 1)),
+        4,
         2,
-        Ui.WHITE);
+        Ui.primary());
     buttons.clear();
     List<Integer> commands = new ArrayList<>();
     if (!track.available() || track.previous()) commands.add(1);
     if (!track.available() || track.toggle()) commands.add(0);
     if (!track.available() || track.next()) commands.add(2);
     if (!track.available() || track.repeatSupported()) commands.add(3);
-    float x = WIDTH / 2f - commands.size() * 13;
+    float x = (WIDTH - commands.size() * BUTTON_W - Math.max(0, commands.size() - 1) * 8) / 2f;
+    boolean interactive = mc.screen instanceof FluxScreen || mc.screen instanceof HudEditorScreen;
+    double mx =
+        (mc.mouseHandler.xpos()
+                    * mc.getWindow().getGuiScaledWidth()
+                    / mc.getWindow().getScreenWidth()
+                - box.x)
+            / box.scale;
+    double my =
+        (mc.mouseHandler.ypos()
+                    * mc.getWindow().getGuiScaledHeight()
+                    / mc.getWindow().getScreenHeight()
+                - box.y)
+            / box.scale;
     for (int command : commands) {
       buttons.add(
           new Button(
@@ -137,8 +139,30 @@ public final class SpotifyHud implements AutoCloseable {
                 case 2 -> "Next track";
                 default -> "Repeat";
               }));
-      drawButton(g, command, (int) x, 77, !track.available() || track.playing(), track.repeat());
-      x += 26;
+      boolean hover = interactive && Ui.inside(mx, my, x, BUTTON_Y, BUTTON_W, BUTTON_H);
+      float amount = motion.value("hover." + command, hover ? 1 : 0);
+      Ui.rounded(
+          g,
+          x,
+          BUTTON_Y,
+          BUTTON_W,
+          BUTTON_H,
+          8,
+          command == 0
+              ? Ui.alpha(FluxTweaks.config.theme.primary, .24f + amount * .12f)
+              : Ui.inset());
+      if (amount > 0)
+        Ui.rounded(g, x, BUTTON_Y, BUTTON_W, BUTTON_H, 8, Ui.alpha(0xffffff, amount * .07f));
+      if (hover || (pressedCommand == command && System.nanoTime() < pressedUntil))
+        Ui.outline(g, x, BUTTON_Y, BUTTON_W, BUTTON_H, 8, Ui.secondary());
+      drawButton(
+          g,
+          command,
+          (int) x + 5,
+          BUTTON_Y + 7,
+          track.available() && track.playing(),
+          track.repeat());
+      x += BUTTON_W + 8;
     }
     g.pose().popMatrix();
   }
@@ -158,26 +182,38 @@ public final class SpotifyHud implements AutoCloseable {
     switch (command) {
       case 0 -> {
         if (playing) {
-          g.fill(x + 6, y + 1, x + 9, y + 12, color);
-          g.fill(x + 12, y + 1, x + 15, y + 12, color);
+          Ui.rounded(g, x + 6, y + 1, 3, 11, 1, color);
+          Ui.rounded(g, x + 12, y + 1, 3, 11, 1, color);
         } else Ui.triangle(g, x + 8, y + 1, 13, true, color);
       }
       case 1 -> {
-        g.fill(x + 5, y + 2, x + 7, y + 11, color);
+        Ui.rounded(g, x + 5, y + 2, 2, 9, 1, color);
         Ui.triangle(g, x + 8, y + 1, 13, false, color);
       }
       case 2 -> {
         Ui.triangle(g, x + 5, y + 1, 13, true, color);
-        g.fill(x + 14, y + 2, x + 16, y + 11, color);
+        Ui.rounded(g, x + 14, y + 2, 2, 9, 1, color);
       }
       case 3 -> {
-        g.fill(x + 5, y + 2, x + 16, y + 3, color);
-        g.fill(x + 4, y + 3, x + 5, y + 7, color);
-        g.fill(x + 6, y + 10, x + 17, y + 11, color);
-        g.fill(x + 17, y + 6, x + 18, y + 10, color);
-        Ui.triangle(g, x + 13, y, 7, true, color);
-        Ui.triangle(g, x + 4, y + 7, 7, false, color);
-        if (repeat == 1) Ui.text(g, "1", x + 10, y + 4, color);
+        // Rounded vector strokes use the same analytic coverage as the other HUD controls.
+        Ui.line(g, x + 4.5f, y + 6, x + 4.5f, y + 5, 1.4f, color);
+        Ui.line(g, x + 4.5f, y + 5, x + 4.9f, y + 3.5f, 1.4f, color);
+        Ui.line(g, x + 4.9f, y + 3.5f, x + 6, y + 2.4f, 1.4f, color);
+        Ui.line(g, x + 6, y + 2.4f, x + 7.5f, y + 2, 1.4f, color);
+        Ui.line(g, x + 7.5f, y + 2, x + 18, y + 2, 1.4f, color);
+        Ui.line(g, x + 15, y - 1, x + 18, y + 2, 1.4f, color);
+        Ui.line(g, x + 18, y + 2, x + 15, y + 5, 1.4f, color);
+        Ui.line(g, x + 17.5f, y + 7, x + 17.5f, y + 8, 1.4f, color);
+        Ui.line(g, x + 17.5f, y + 8, x + 17.1f, y + 9.5f, 1.4f, color);
+        Ui.line(g, x + 17.1f, y + 9.5f, x + 16, y + 10.6f, 1.4f, color);
+        Ui.line(g, x + 16, y + 10.6f, x + 14.5f, y + 11, 1.4f, color);
+        Ui.line(g, x + 14.5f, y + 11, x + 4, y + 11, 1.4f, color);
+        Ui.line(g, x + 7, y + 8, x + 4, y + 11, 1.4f, color);
+        Ui.line(g, x + 4, y + 11, x + 7, y + 14, 1.4f, color);
+        if (repeat == 1) {
+          Ui.line(g, x + 9, y + 5, x + 11, y + 4, 1, color);
+          Ui.line(g, x + 11, y + 4, x + 11, y + 8, 1, color);
+        }
       }
       default -> {}
     }
@@ -192,7 +228,9 @@ public final class SpotifyHud implements AutoCloseable {
     if (!FluxTweaks.active(Feature.SPOTIFY) || !track.available()) return true;
     double x = (mx - b.x) / b.scale, y = (my - b.y) / b.scale;
     for (Button button : buttons)
-      if (Ui.inside(x, y, button.x, 73, 23, 22)) {
+      if (Ui.inside(x, y, button.x, BUTTON_Y, BUTTON_W, BUTTON_H)) {
+        pressedCommand = button.command;
+        pressedUntil = System.nanoTime() + 140_000_000L;
         FluxTweaks.spotify.command(button.command);
         return true;
       }
@@ -202,7 +240,8 @@ public final class SpotifyHud implements AutoCloseable {
   public boolean controlAt(double mx, double my) {
     Bounds b = bounds();
     double x = (mx - b.x) / b.scale, y = (my - b.y) / b.scale;
-    return buttons.stream().anyMatch(button -> Ui.inside(x, y, button.x, 73, 23, 22));
+    return buttons.stream()
+        .anyMatch(button -> Ui.inside(x, y, button.x, BUTTON_Y, BUTTON_W, BUTTON_H));
   }
 
   private void artwork(SpotifyService.Frame frame) {
@@ -230,8 +269,6 @@ public final class SpotifyHud implements AutoCloseable {
                         image.close();
                         return;
                       }
-                      artworkWidth = image.getWidth();
-                      artworkHeight = image.getHeight();
                       Minecraft.getInstance()
                           .getTextureManager()
                           .register(COVER, new DynamicTexture(() -> "Flux Spotify cover", image));

@@ -2,7 +2,9 @@ package dev.fluxtweaks.gui;
 
 import dev.fluxtweaks.FluxTweaks;
 import dev.fluxtweaks.config.VisualMath;
+import dev.fluxtweaks.gui.motion.*;
 import dev.fluxtweaks.mixin.FontAccess;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
@@ -10,15 +12,56 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GlyphSource;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.font.glyphs.BakedGlyph;
 import net.minecraft.client.gui.font.glyphs.EffectGlyph;
 import net.minecraft.network.chat.*;
 
 public final class Ui {
-  public static final int WHITE = 0xFFF4F4F5, MUTED = 0xFFBDBDC3;
+  public static final int WHITE = 0xFFF3F5F7, MUTED = 0xFFB5BEC9;
   private static final FontDescription FONT = new FontDescription.Resource(FluxTweaks.id("ui"));
   private static final FontDescription TITLE =
       new FontDescription.Resource(FluxTweaks.id("ui_title"));
   private static Font inputFont, originalFont;
+
+  private record Metrics(BakedGlyph glyph, float top, float height) {}
+
+  private static Metrics bodyMetrics, titleMetrics;
+
+  // Use a stable capital reference, not each label's ascenders/descenders, so rows share a
+  // baseline.
+  // The baked glyph identity changes with resource reloads; no stale GPU/font resources are held.
+  private static Metrics metrics(boolean title) {
+    Font font = Minecraft.getInstance().font;
+    FontDescription description = title ? TITLE : FONT;
+    BakedGlyph glyph =
+        ((FontAccess) (Object) font).flux$provider().glyphs(description).getGlyph('H');
+    Metrics cached = title ? titleMetrics : bodyMetrics;
+    if (cached == null || cached.glyph != glyph) {
+      var ink = glyph.createGlyph(0, 0, WHITE, 0, Style.EMPTY.withFont(description), 0, 0);
+      cached =
+          new Metrics(
+              glyph, ink == null ? 0 : ink.top(), ink == null ? 9 : ink.bottom() - ink.top());
+      if (title) titleMetrics = cached;
+      else bodyMetrics = cached;
+    }
+    return cached;
+  }
+
+  public static int textY(int top, int height) {
+    return top + Math.round((height - metrics(false).height) / 2);
+  }
+
+  public static void row(GuiGraphics g, String text, int x, int y, int height, int color) {
+    text(g, text, x, textY(y, height), color);
+  }
+
+  public static void centered(GuiGraphics g, String text, int x, int y, int w, int h, int color) {
+    row(g, text, x + (w - width(text)) / 2, y, h, color);
+  }
+
+  public static void titleRow(GuiGraphics g, String text, int x, int y, int height, int color) {
+    title(g, text, x, y + Math.round((height - metrics(true).height) / 2), color);
+  }
 
   public static boolean isFont(FontDescription font) {
     return FONT.equals(font) || TITLE.equals(font);
@@ -29,7 +72,13 @@ public final class Ui {
   }
 
   public static void text(GuiGraphics g, String text, int x, int y, int color) {
-    g.drawString(Minecraft.getInstance().font, label(text), x, y, color, false);
+    g.drawString(
+        Minecraft.getInstance().font,
+        label(text),
+        x,
+        y - Math.round(metrics(false).top),
+        color,
+        false);
   }
 
   public static void title(GuiGraphics g, String text, int x, int y, int color) {
@@ -37,7 +86,7 @@ public final class Ui {
         Minecraft.getInstance().font,
         Component.literal(text).withStyle(s -> s.withFont(TITLE)),
         x,
-        y,
+        y - Math.round(metrics(true).top),
         color,
         false);
   }
@@ -51,16 +100,31 @@ public final class Ui {
   }
 
   public static String fit(String text, int width) {
+    return fit(text, width, Ui::width);
+  }
+
+  public static String fitTitle(String text, int width) {
+    return fit(
+        text,
+        width,
+        value ->
+            Minecraft.getInstance()
+                .font
+                .width(Component.literal(value).withStyle(s -> s.withFont(TITLE))));
+  }
+
+  private static String fit(
+      String text, int width, java.util.function.ToIntFunction<String> measure) {
     if (text == null) return "";
-    if (width(text) <= width) return text;
+    if (measure.applyAsInt(text) <= width) return text;
     String value = text;
-    while (!value.isEmpty() && width(value + "…") > width)
+    while (!value.isEmpty() && measure.applyAsInt(value + "…") > width)
       value = value.substring(0, value.offsetByCodePoints(value.length(), -1));
     return value + "…";
   }
 
   public static float scaleFor(int width, int height) {
-    return Math.min(.75f, Math.min(width / 560f, height / 480f));
+    return GuiLayout.scale(width, height, FluxTweaks.config.theme.guiScale);
   }
 
   public static int alpha(int rgb, float alpha) {
@@ -161,7 +225,16 @@ public final class Ui {
                 }
               });
     }
-    EditBox box = new EditBox(inputFont, x, y, w, h, label(title));
+    EditBox box =
+        new EditBox(inputFont, x, y, w, h, label(title)) {
+          @Override
+          public void renderWidget(GuiGraphics graphics, int mx, int my, float delta) {
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(0, textY(0, getHeight()) - Math.round(metrics(false).top));
+            super.renderWidget(graphics, mx, my, delta);
+            graphics.pose().popMatrix();
+          }
+        };
     box.setBordered(false);
     box.setTextShadow(false);
     box.setTextColor(WHITE);
@@ -169,28 +242,42 @@ public final class Ui {
     return box;
   }
 
+  /** Shared toolkit timings; each transition retargets from its displayed value. */
   public static final class Motion {
-    private final Map<String, Float> values = new HashMap<>();
-    private long previous = System.nanoTime();
-    private float seconds = 1 / 60f;
-
-    public void frame() {
-      long now = System.nanoTime();
-      seconds = Math.clamp((now - previous) / 1_000_000_000f, 0, .05f);
-      previous = now;
-    }
+    private final Map<String, Tween> values = new HashMap<>();
 
     public float value(String key, float target) {
-      float old = values.getOrDefault(key, target);
-      float next = old + (target - old) * (float) (1 - Math.exp(-18 * seconds));
-      if (Math.abs(next - target) < .001f) next = target;
-      values.put(key, next);
-      return next;
+      return value(key, target, 100);
+    }
+
+    public float value(String key, float target, int millis) {
+      Tween tween = values.computeIfAbsent(key, ignored -> new Tween(target));
+      tween.animateTo(
+          target,
+          Duration.ofMillis(millis),
+          key.equals("screen") && target == 0 ? Easing.CUBIC_IN : Easing.CUBIC_OUT,
+          FluxTweaks.config.theme.reducedMotion);
+      return (float) tween.value();
     }
 
     public void snap(String key, float target) {
-      values.put(key, target);
+      values.computeIfAbsent(key, ignored -> new Tween(target)).snapTo(target);
     }
+  }
+
+  public static int raised() {
+    return VisualMath.blend(panel(), 0xFFFFFFFF, .055f);
+  }
+
+  public static void surface(GuiGraphics g, float x, float y, float w, float h) {
+    rounded(g, x, y, w, h, 12, panel());
+    outline(g, x, y, w, h, 12, 0x24FFFFFF);
+  }
+
+  public static void chevron(GuiGraphics g, float x, float y, boolean up, int color) {
+    float sign = up ? -1 : 1;
+    line(g, x, y, x + 3, y + 3 * sign, 1.2f, color);
+    line(g, x + 3, y + 3 * sign, x + 6, y, 1.2f, color);
   }
 
   private Ui() {}

@@ -1,15 +1,45 @@
-# Flux Tweaks 0.1.4
+# Flux Tweaks
 
-A client-only Minecraft Java 1.21.11 mod for Windows x64. Includes 14 modules: the original nine features, Fullbright, Low Fire, Zoom, Block Overlay and Hit Color, with the refined GUI. The owner confirmed the existing features work in multiplayer on 2026-10-21; see [CHECKLIST.md](CHECKLIST.md) and [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md).
+A client-only Minecraft Java mod for Windows x64, with separate **1.21.11** and **26.2** builds. Includes 14 modules: the original nine features, Fullbright, Low Fire, Zoom, Block Overlay and Hit Color, with the redesigned GUI. The owner confirmed the existing features work in multiplayer on 2026-10-21; see [CHECKLIST.md](CHECKLIST.md) and [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md).
 
 ## Install
 
-1. Use a Minecraft **1.21.11 Fabric** profile, Java **21**, Fabric Loader **0.19.5 or newer**, and Fabric API **0.141.6+1.21.11**.
-2. Put **fluxtweaks-0.1.4.jar** in that profile's `mods` folder. The Spotify bridge is bundled; no Spotify credentials or web login are needed.
-3. Optionally add **Sodium 0.8.14 for 1.21.11 Fabric**, which was checked alongside this build.
-4. Launch the game, join a world, and press **Right Shift**. All features start disabled.
+Choose the JAR that matches your Minecraft profile. Install only one Flux Tweaks JAR per profile.
 
-The server does not need this mod. The supported rendering configurations are Fabric alone and Fabric + Sodium. Iris/shader packs and other rendering modifications have not been checked.
+| Minecraft | Java | Fabric Loader | Fabric API | Optional Sodium |
+| --- | --- | --- | --- | --- |
+| 1.21.11 | 21 | 0.19.5 or newer | 0.141.6+1.21.11 | 0.8.14 for 1.21.11 |
+| 26.2 | 25 | 0.19.5 or newer | 0.161.0+26.2 | 0.9.2 for 26.2 |
+
+1. Create the matching Fabric profile and install its Fabric API.
+2. Add `fluxtweaks-0.2.2-mc1.21.11.jar` or `fluxtweaks-0.2.3-mc26.2.jar` to its `mods` folder. The Windows Spotify bridge is bundled.
+3. Launch a world and press **Right Shift**. Existing settings migrate; new installations start with all modules disabled and feature keys unbound.
+
+## Minecraft 26.2 Iris compatibility patch — 0.2.3
+
+The 26.2 JAR fixes a startup conflict between Flux Hand Chams and Iris's hand renderer, also present in Lunar's bundled Iris stack. The hand hook now preserves the original operation chain. The 1.21.11 build remains 0.2.2. See [Lunar documentation, exact crash diagnosis and verification limits](docs/LUNAR-COMPATIBILITY.md).
+
+## Spotify repeat icon in 0.2.2
+
+The repeat control now uses smooth, rounded vector strokes for its loop, arrowheads and repeat-one mark. Off stays white; repeat-all and repeat-one use the secondary theme color. See [repeat icon notes](docs/SPOTIFY-REPEAT-022.md).
+
+## GUI polish in 0.2.1
+
+- Text now uses measured font metrics: aligned headings, centered search/input text, labels, toggles, value boxes and checked choices. Range fields and dialog actions share the same alignment rules.
+- Spotify HUD uses the GUI theme, rounded artwork and buttons, clear title/artist/status hierarchy, accent progress and interaction feedback. Unsupported actions remain hidden; its HUD scale remains independent.
+- **Theme → GUI Scale:** 50–150%, default 100%, with slider or typed percentage. Scales both panels and modal editors together, including input and clipping; large settings remain scrollable. The window may constrain the effective size.
+- **Reset Layout / Home** also restores GUI scale to 100%. Existing configuration and all fourteen features are preserved.
+- HUD Editor moves its toolbar to the edge opposite the card to reduce overlap.
+
+See [GUI polish design and checks](docs/GUI-POLISH-021.md) for before/after captures and the version-specific acceptance record.
+
+## GUI redesign in 0.2.0
+
+The full settings interface follows the installed minecraft-gui toolkit: larger proportional type, consistent rounded surfaces and spacing, compact checked choice menus, clearer color/value fields, smooth sliders, explicit modal actions, keyboard focus, and a saved **Reduced Motion** preference. Two draggable panels, search, custom colors/transparency and every existing feature remain available. The HUD editor has Reset and Done controls. Press **Home** in the GUI to recover panel layout, or use **Theme → Reset Layout**.
+
+See [design and verification notes](docs/GUI-REDESIGN.md) for the native adapters, dual-version commands and evidence limits. The upstream ModernUI showcase is reference material; it is not a dependency of these builds.
+
+The server does not need this mod. Fabric alone and Fabric + Sodium are checked on both targets. The 26.2 compatibility patch also checks Iris 1.11.4 with no shader pack selected. Real Lunar acceptance and shader-pack rendering remain pending; see the compatibility report.
 
 ## New modules in 0.1.4
 
@@ -43,7 +73,7 @@ Replace the old mod JAR with the new one. Your existing version-1 configuration 
 - Each feature has an Enabled switch and keybind row. Click the row and press a keyboard or mouse button; **Delete/Backspace** clears it and **Esc** cancels. Feature binds also appear in Minecraft Controls and initially remain unbound. **Zoom is a hold binding:** its Enabled switch arms it; the key temporarily zooms. Other module keys toggle, except Freelook when configured to Hold.
 - Drag a panel's heading to move it. Select a feature to open its settings; scroll the feature list or long settings. Search filters the flat list.
 - Drag sliders, or click their displayed value to type. Range values accept `min, max`. Colors offer a picker and six-digit hex entry.
-- **Theme:** primary/secondary/background colors and background transparency; **Reset Layout** restores both panels and HUD placement. **Home** also resets layout.
+- **Theme:** primary/secondary/background colors, transparency, Reduced Motion and **GUI Scale (50–150%)**. **Reset Layout / Home** restores both panels, HUD placement and 100% GUI scale. Spotify retains its separate HUD scale.
 - **HUD Editor:** drag the Spotify card, scroll to scale, arrow keys to nudge, Esc to return. Playback buttons work while the editor or Flux GUI is open.
 - **Ctrl+F:** focus search. **Tab/Shift+Tab:** move control focus, with narrator labels. **Enter/Space:** activate a focused control. **Page Up/Down:** scroll settings.
 
@@ -78,7 +108,7 @@ Your own shield cooldown uses game data. Other players' disabled states are **es
 
 ## Build and checks
 
-Use JDK 21 and Visual Studio C++ Build Tools with the Windows SDK (C++/WinRT). No global Java or Windows settings need changing.
+For the root **1.21.11** build, use JDK 21 and Visual Studio C++ Build Tools with the Windows SDK (C++/WinRT). No global Java or Windows settings need changing.
 
 ```powershell
 .\gradlew.bat build --console plain
@@ -86,7 +116,18 @@ Use JDK 21 and Visual Studio C++ Build Tools with the Windows SDK (C++/WinRT). N
 .\gradlew.bat runProductionClientGameTest -PsodiumAcceptance --console plain
 ```
 
-`build` compiles Java with `--release 21`, builds the x64 native bridge with the static C++ runtime, runs focused JUnit checks, and produces `build/libs/fluxtweaks-0.1.4.jar`. `runProductionClientGameTest` runs the packaged intermediary-mapped mod in an isolated single-player game. Test worlds and screenshots stay under `build/run/productionFabric` or `build/run/productionSodium`. The test mod is separate and is never included in the installation JAR. The normal development game check is also available as `runClientGameTest`.
+`build` compiles Java with `--release 21`, builds the x64 native bridge with the static C++ runtime, runs focused JUnit checks, and produces `build/libs/fluxtweaks-0.2.0.jar`. `runProductionClientGameTest` runs the packaged intermediary-mapped mod in an isolated single-player game. Test worlds and screenshots stay under `build/run/productionFabric` or `build/run/productionSodium`. The test mod is separate and is never included in the installation JAR. The normal development game check is also available as `runClientGameTest`.
+
+For **26.2**, select JDK 25 and run its own wrapper:
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Java\jdk-25.0.4' # or your Java 25 installation
+.\versions\26.2\gradlew.bat -p versions/26.2 build --console plain
+.\versions\26.2\gradlew.bat -p versions/26.2 runProductionClientGameTest --console plain
+.\versions\26.2\gradlew.bat -p versions/26.2 runProductionClientGameTest -PsodiumAcceptance --console plain
+```
+
+This build produces `versions/26.2/build/libs/fluxtweaks-mc26.2-0.2.0.jar` using unobfuscated 26.2 classes. The two build directories, test worlds and screenshots are independent. Do not run the two game clients' acceptance suites simultaneously: they exercise window focus and input. The distributable copies are named with both mod and Minecraft versions as shown in Install above.
 
 The owner confirmed multiplayer gameplay works in 0.1.2. Automated dedicated-server testing and EULA acceptance remain **disabled**; no multiplayer test server was started. Low Fire and the three 0.1.4 additions require confirmation in the owner's multiplayer profile.
 
@@ -95,7 +136,10 @@ The owner confirmed multiplayer gameplay works in 0.1.2. Automated dedicated-ser
 ## Source map
 
 - `src/main/java/dev/fluxtweaks/config`: shared catalog, validation, persistence, pure visual math.
-- `src/client/java/dev/fluxtweaks`: lifecycle, native screens, features, rendering, media and targeted mixins.
+- `src/client/java/dev/fluxtweaks`: 1.21.11 lifecycle, native screens, features, rendering, media and targeted mixins.
+- `versions/26.2`: Java 25 / Minecraft 26.2 client adapters, tests and independent build.
+- `src/main/java/dev/fluxtweaks/gui/motion`: toolkit animation core, with MIT attribution.
+- `.agents/skills/minecraft-gui`: complete, unmodified installed toolkit and workflow guides.
 - `src/test`: focused configuration/time/shield priority checks.
 - `src/gametest`: packaged-game GUI, camera, item-use, particles, PNG and shield smoke checks.
 - `native`: C++/WinRT media bridge and Windows build script.

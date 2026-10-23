@@ -1,0 +1,35 @@
+{
+  "required": true,
+  "package": "dev.fluxtweaks.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "CameraAccess",
+    "CameraMixin",
+    "MouseMixin",
+    "KeyboardInputMixin",
+    "InteractionMixin",
+    "ViewModelMixin",
+    "TimelineMixin",
+    "FogMixin",
+    "SkyMixin",
+    "WeatherMixin",
+    "ItemModelResolverMixin",
+    "ItemStateMixin",
+    "SubmitTintMixin",
+    "SoundMixin",
+    "GameRendererMixin",
+    "FontAccess",
+    "UiGlyphMixin",
+    "FullbrightMixin",
+    "LowFireMixin",
+    "VoxelShapeAccess",
+    "HitStateMixin",
+    "HitColorMixin",
+    "HitOverlayMixin",
+    "HitArmorMixin",
+    "ZoomKeyboardMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

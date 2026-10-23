@@ -3,15 +3,19 @@ package dev.fluxtweaks.gui;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.fluxtweaks.FluxTweaks;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.gui.render.state.GuiElementRenderState;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2f;
 
 /** Native GUI batches, with analytic pixel coverage instead of scaled corner pictures. */
@@ -22,6 +26,7 @@ public final class SmoothGui {
       shape("saturation_value", "SATURATION_VALUE");
   public static final RenderPipeline HUE = shape("hue", "HUE");
   public static final RenderPipeline TRIANGLE = shape("triangle", "TRIANGLE");
+  public static final RenderPipeline COVER = shape("cover", "COVER");
   public static final RenderPipeline TEXT = text(false);
   public static final RenderPipeline COLOR_TEXT = text(true);
 
@@ -37,6 +42,7 @@ public final class SmoothGui {
             .withCull(false)
             .withVertexFormat(
                 DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS);
+    if ("COVER".equals(define)) builder.withSampler("Sampler0");
     if (define != null) builder.withShaderDefine(define);
     return builder.build();
   }
@@ -63,6 +69,28 @@ public final class SmoothGui {
       float height,
       float radius,
       int color) {
+    box(g, pipeline, x, y, width, height, radius, color, TextureSetup.noTexture());
+  }
+
+  public static void image(
+      GuiGraphics g, Identifier texture, float x, float y, float size, float radius) {
+    var setup =
+        TextureSetup.singleTexture(
+            Minecraft.getInstance().getTextureManager().getTexture(texture).getTextureView(),
+            RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+    box(g, COVER, x, y, size, size, radius, 0xffffffff, setup);
+  }
+
+  private static void box(
+      GuiGraphics g,
+      RenderPipeline pipeline,
+      float x,
+      float y,
+      float width,
+      float height,
+      float radius,
+      int color,
+      TextureSetup texture) {
     if (width <= 0 || height <= 0 || color >>> 24 == 0) return;
     radius = Math.clamp(radius, 0, Math.min(width, height) * .5f);
     var pose = new Matrix3x2f(g.pose());
@@ -77,7 +105,7 @@ public final class SmoothGui {
     if (scissor != null) bounds = scissor.intersection(bounds);
     if (bounds != null)
       g.guiRenderState.submitGuiElement(
-          new Shape(pipeline, pose, x, y, width, height, radius, color, scissor, bounds));
+          new Shape(pipeline, pose, x, y, width, height, radius, color, scissor, bounds, texture));
   }
 
   private record Shape(
@@ -90,13 +118,9 @@ public final class SmoothGui {
       float radius,
       int color,
       ScreenRectangle scissorArea,
-      ScreenRectangle bounds)
+      ScreenRectangle bounds,
+      TextureSetup textureSetup)
       implements GuiElementRenderState {
-    @Override
-    public TextureSetup textureSetup() {
-      return TextureSetup.noTexture();
-    }
-
     @Override
     public void buildVertices(VertexConsumer consumer) {
       float halfW = width * .5f, halfH = height * .5f;

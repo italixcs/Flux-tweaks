@@ -7,7 +7,6 @@ import dev.fluxtweaks.config.Feature;
 import dev.fluxtweaks.feature.HitColor;
 import dev.fluxtweaks.feature.Zoom;
 import dev.fluxtweaks.gui.FluxScreen;
-import dev.fluxtweaks.gui.Ui;
 import dev.fluxtweaks.render.BlockOverlay;
 import dev.fluxtweaks.test.mixin.KeyboardProbe;
 import dev.fluxtweaks.test.mixin.RendererProbe;
@@ -63,22 +62,12 @@ final class ModulesAcceptance {
                   .forEach(c -> mc.screen.charTyped(new CharacterEvent(c, 0)));
             });
         ctx.waitTicks(3);
+        GuiAcceptance.clickControl(ctx, "Configure " + feature.title);
         ctx.runOnClient(
-            mc -> {
-              double scale =
-                  Ui.scaleFor(
-                      mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight());
-              var e =
-                  new MouseButtonEvent(
-                      (FluxTweaks.config.layout.navX + 40) * scale,
-                      (FluxTweaks.config.layout.navY + 103) * scale,
-                      new MouseButtonInfo(0, 0));
-              mc.screen.mouseClicked(e, false);
-              mc.screen.mouseReleased(e);
-              check(
-                  FluxTweaks.config.layout.selected.equals(feature.id),
-                  "Search cannot select " + feature.title);
-            });
+            mc ->
+                check(
+                    FluxTweaks.config.layout.selected.equals(feature.id),
+                    "Search cannot select " + feature.title));
         ctx.waitTicks(2);
         ctx.takeScreenshot("flux-014-settings-" + feature.id);
       }
