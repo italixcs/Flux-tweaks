@@ -1,0 +1,13 @@
+{
+  "atlasSize": 128,
+  "quadrantSize": 64,
+  "regions": {"blade": [0, 0, 64, 64], "handle": [64, 0, 64, 64], "hardware": [0, 64, 64, 64], "accent": [64, 64, 64, 64]},
+  "finishes": {
+    "steel": {"label": "Steel", "pattern": "brushed", "blade": ["#8f9ca7", "#dde5eb", "#bac6ce"], "handle": "#343c46", "hardware": "#c4ccd3", "accent": "#8b9cae"},
+    "flux": {"label": "Flux", "pattern": "flow", "blade": ["#7544b9", "#35cbd4", "#b77cf3"], "handle": "#242738", "hardware": "#acb8ce", "accent": "#53dde1"},
+    "sunset": {"label": "Sunset", "pattern": "fade", "blade": ["#f4bc49", "#e26373", "#7745b4"], "handle": "#3e303b", "hardware": "#c8b4ac", "accent": "#e8ad57"},
+    "violet_marble": {"label": "Violet Marble", "pattern": "marble", "blade": ["#392960", "#9667c9", "#d2b1ec"], "handle": "#302a40", "hardware": "#bdb3d1", "accent": "#b48ee0"},
+    "emerald_marble": {"label": "Emerald Marble", "pattern": "marble", "blade": ["#163e38", "#299875", "#9ce2b5"], "handle": "#263b34", "hardware": "#adbfb5", "accent": "#54ca99"},
+    "obsidian_red": {"label": "Obsidian Red", "pattern": "fracture", "blade": ["#252831", "#9b243c", "#ea6a6d"], "handle": "#24252b", "hardware": "#979ba7", "accent": "#d24d60"}
+  }
+}

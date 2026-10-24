@@ -1,0 +1,18 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "fluxtweaks:lato-bold.ttf",
+      "shift": [
+        0,
+        0
+      ],
+      "size": 16,
+      "oversample": 4
+    },
+    {
+      "type": "reference",
+      "id": "minecraft:default"
+    }
+  ]
+}

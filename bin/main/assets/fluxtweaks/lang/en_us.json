@@ -1,0 +1,21 @@
+{
+  "key.category.fluxtweaks.controls": "Flux Tweaks",
+  "key.fluxtweaks.gui": "Open Flux Tweaks",
+  "key.fluxtweaks.hand_chams": "Toggle Hand Chams",
+  "key.fluxtweaks.view_models": "Toggle View Models",
+  "key.fluxtweaks.spotify": "Toggle Spotify HUD",
+  "key.fluxtweaks.hit_particles": "Toggle Hit Particles",
+  "key.fluxtweaks.jump_circle": "Toggle Jump Circle",
+  "key.fluxtweaks.ambience": "Toggle Ambience",
+  "key.fluxtweaks.shield_status": "Toggle Shield Status",
+  "key.fluxtweaks.freelook": "Freelook Action",
+  "key.fluxtweaks.freecam": "Freecam Action",
+  "key.fluxtweaks.fullbright": "Toggle Fullbright",
+  "key.fluxtweaks.low_fire": "Toggle Low Fire",
+  "key.fluxtweaks.zoom": "Zoom Action",
+  "key.fluxtweaks.block_overlay": "Toggle Block Overlay",
+  "key.fluxtweaks.hit_color": "Toggle Hit Color",
+  "key.fluxtweaks.enable.freecam": "Enable / Disable Freecam",
+  "key.fluxtweaks.enable.freelook": "Enable / Disable Freelook",
+  "key.fluxtweaks.enable.zoom": "Enable / Disable Zoom"
+}
