@@ -58,6 +58,7 @@ public final class FluxClientTest implements FabricClientGameTest {
       FullbrightAcceptance.run(context, world);
       LowFireAcceptance.run(context, world);
       ModulesAcceptance.run(context, world);
+      ButterflyAcceptance.run(context, world);
       world
           .getServer()
           .runOnServer(

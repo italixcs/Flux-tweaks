@@ -13,6 +13,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
+  @Inject(method = "renderItemInHand", at = @At("HEAD"))
+  private void flux$knifeFrame(CallbackInfo ci) {
+    dev.fluxtweaks.feature.ButterflyKnife.beginFrame();
+  }
+
   @Inject(method = "mainRenderTarget", at = @At("HEAD"), cancellable = true)
   private void flux$target(CallbackInfoReturnable<com.mojang.blaze3d.pipeline.RenderTarget> cir) {
     if (dev.fluxtweaks.render.HandChams.captureTarget != null)

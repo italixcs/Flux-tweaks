@@ -108,11 +108,14 @@ public final class FluxTweaks implements ClientModInitializer {
     ResourceLoader.get(PackType.CLIENT_RESOURCES)
         .registerReloadListener(
             id("hit_color"), (ResourceManagerReloadListener) manager -> HitColor.clearCache());
+    ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(
+        id("butterfly"), (ResourceManagerReloadListener) manager -> ButterflyRenderer.reload());
     ClientTickEvents.START_CLIENT_TICK.register(
         mc -> {
           if (mc.level != lastLevel) {
             cameras.reset();
             Zoom.cancel();
+            ButterflyKnife.reset();
             notifications.clear();
             effects.clear();
             shields.clear();
@@ -146,6 +149,8 @@ public final class FluxTweaks implements ClientModInitializer {
           chams.close();
           effects.close();
           HitColor.clearCache();
+          ButterflyKnife.reset();
+          ButterflyRenderer.reload();
         });
     LOGGER.info(
         "Flux Tweaks initialized: Minecraft 26.2, all modules configurable with Right Shift");
@@ -157,6 +162,7 @@ public final class FluxTweaks implements ClientModInitializer {
         mc.gui.screen().onClose();
       else if (mc.gui.screen() == null) mc.gui.setScreen(new FluxScreen());
     }
+    ButterflyKnife.tick();
     boolean editing = mc.gui.screen() != null || mc.gui.overlay() != null || !mc.isWindowActive();
     for (Feature f : Feature.values()) {
       KeyMapping enable = enableKeys.get(f);
@@ -167,6 +173,14 @@ public final class FluxTweaks implements ClientModInitializer {
       KeyMapping action = keys.get(f);
       boolean pressed = false;
       while (action.consumeClick()) pressed = true;
+      if (f == Feature.BUTTERFLY_KNIFE) {
+        var gate = actionGates.computeIfAbsent(f, ignored -> new ActionGate());
+        String binding = action.saveString();
+        if (!binding.equals(actionBindings.put(f, binding))) gate.block();
+        if (gate.update(config.enabled(f) && !toggled && !editing, action.isDown(), pressed, false, false))
+          ButterflyKnife.inspect();
+        continue;
+      }
       if (f == Feature.ZOOM) continue;
       var gate = actionGates.computeIfAbsent(f, ignored -> new ActionGate());
       String binding = action.saveString() + ":" + config.text(f, "activation");
@@ -195,6 +209,7 @@ public final class FluxTweaks implements ClientModInitializer {
     config.module(feature).enabled = enabled;
     if (feature.hasAction())
       actionGates.computeIfAbsent(feature, ignored -> new ActionGate()).block();
+    if (feature == Feature.BUTTERFLY_KNIFE) ButterflyKnife.reset();
     if (feature == Feature.ZOOM) Zoom.refresh();
     if (feature == Feature.HAND_CHAMS && !enabled && chams != null) chams.close();
     if (notifications != null)

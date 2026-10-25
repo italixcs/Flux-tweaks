@@ -2,6 +2,7 @@ package dev.fluxtweaks.mixin;
 
 import dev.fluxtweaks.FluxTweaks;
 import dev.fluxtweaks.render.ShieldTint;
+import dev.fluxtweaks.render.ButterflyRenderer;
 import net.minecraft.client.renderer.item.*;
 import net.minecraft.world.entity.ItemOwner;
 import net.minecraft.world.entity.LivingEntity;
@@ -36,5 +37,6 @@ public abstract class ItemModelResolverMixin {
                     display.leftHand()
                         != (living.getMainArm() == net.minecraft.world.entity.HumanoidArm.LEFT))
                 : -1);
+    ButterflyRenderer.replace(state, stack, display, owner);
   }
 }

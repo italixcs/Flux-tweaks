@@ -109,6 +109,7 @@ public final class FluxScreen extends Screen {
       case ZOOM -> "Hold your key to zoom. Scroll to adjust.";
       case BLOCK_OVERLAY -> "A clear outline of the block you are targeting.";
       case HIT_COLOR -> "Your own color for the damage flash.";
+      case BUTTERFLY_KNIFE -> "Flip, inspect and finish your first-person swords.";
     };
   }
 
@@ -359,7 +360,7 @@ public final class FluxScreen extends Screen {
           38,
           () -> FluxTweaks.setEnabled(selected, !FluxTweaks.config.enabled(selected)));
       top += 46;
-      if (selected.hasAction() && on) {
+      if (selected.hasAction() && selected != Feature.BUTTERFLY_KNIFE && on) {
         Ui.right(
             g,
             FluxTweaks.active(selected) ? "Active" : "Ready",
@@ -403,7 +404,7 @@ public final class FluxScreen extends Screen {
   private void renderKey(GuiGraphicsExtractor g, int x, int top, boolean action) {
     var keyMapping = action ? FluxTweaks.keys.get(selected) : FluxTweaks.enableKeys.get(selected);
     boolean waiting = binding && bindingAction == action;
-    Ui.row(g, action ? "Action Key" : "Enable Key", x + 20, top, 30, Ui.MUTED);
+    Ui.row(g, action ? (selected == Feature.BUTTERFLY_KNIFE ? "Inspect Key" : "Action Key") : "Enable Key", x + 20, top, 30, Ui.MUTED);
     String key = waiting ? "Press a key…" : keyMapping.getTranslatedKeyMessage().getString();
     Ui.rounded(g, x + 148, top, 156, 30, 7, Ui.inset());
     Ui.outline(g, x + 148, top, 156, 30, 7, waiting ? Ui.secondary() : 0x20FFFFFF);

@@ -14,7 +14,8 @@ public enum Feature {
   LOW_FIRE("low_fire", "Low Fire"),
   ZOOM("zoom", "Zoom"),
   BLOCK_OVERLAY("block_overlay", "Block Overlay"),
-  HIT_COLOR("hit_color", "Hit Color");
+  HIT_COLOR("hit_color", "Hit Color"),
+  BUTTERFLY_KNIFE("butterfly_knife", "Butterfly Knife");
   public final String id, title;
 
   Feature(String id, String title) {
@@ -23,7 +24,7 @@ public enum Feature {
   }
 
   public boolean hasAction() {
-    return camera() || this == ZOOM;
+    return camera() || this == ZOOM || this == BUTTERFLY_KNIFE;
   }
 
   public boolean camera() {

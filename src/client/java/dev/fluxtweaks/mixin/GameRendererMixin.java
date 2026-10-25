@@ -13,6 +13,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
+  @Inject(method = "renderItemInHand", at = @At("HEAD"))
+  private void flux$knifeFrame(CallbackInfo ci) {
+    dev.fluxtweaks.feature.ButterflyKnife.beginFrame();
+  }
+
   @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
   private void flux$zoom(
       Camera camera, float delta, boolean world, CallbackInfoReturnable<Float> cir) {

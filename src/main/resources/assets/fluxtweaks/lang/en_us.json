@@ -17,5 +17,7 @@
   "key.fluxtweaks.hit_color": "Toggle Hit Color",
   "key.fluxtweaks.enable.freecam": "Enable / Disable Freecam",
   "key.fluxtweaks.enable.freelook": "Enable / Disable Freelook",
-  "key.fluxtweaks.enable.zoom": "Enable / Disable Zoom"
+  "key.fluxtweaks.enable.zoom": "Enable / Disable Zoom",
+  "key.fluxtweaks.butterfly_knife": "Inspect Butterfly Knife",
+  "key.fluxtweaks.enable.butterfly_knife": "Enable / Disable Butterfly Knife"
 }

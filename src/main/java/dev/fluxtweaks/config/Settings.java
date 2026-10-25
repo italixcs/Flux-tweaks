@@ -145,6 +145,13 @@ public final class Settings {
             bool("players", "Players", true),
             bool("mobs", "Mobs", true),
             bool("self", "Self", false)));
+    ALL.put(
+        Feature.BUTTERFLY_KNIFE,
+        List.of(
+            choice("finish", "Finish", "Steel", "Steel", "Flux", "Sunset", "Violet Marble", "Emerald Marble", "Obsidian Red"),
+            choice("inspect", "Inspect Style", "Flourish", "Flip", "Spin", "Flourish", "Random"),
+            number("scale", "Knife Scale", 1, .5, 2, .01, "x"),
+            bool("glint", "Shimmer / Glint", true)));
   }
 
   private Settings() {}

@@ -10,6 +10,12 @@ public final class ModuleIcons {
     g.pose().translate(x, y);
     g.pose().scale(size / 16, size / 16);
     switch (feature) {
+      case BUTTERFLY_KNIFE -> {
+        path(g, color, 8, 8, 9, 2, 12, 0, 11, 6, 8, 8);
+        path(g, color, 8, 8, 4, 15, 2, 14, 6, 7);
+        path(g, color, 8, 8, 13, 14, 15, 12, 10, 6);
+        Ui.circle(g, 7, 6.5f, 2.5f, color);
+      }
       case HAND_CHAMS -> {
         path(
             g, color, 4, 14, 4, 11, 2, 8, 3, 6, 5, 8, 5, 3, 7, 2, 9, 3, 9, 7, 11, 5, 13, 6, 13, 10,
