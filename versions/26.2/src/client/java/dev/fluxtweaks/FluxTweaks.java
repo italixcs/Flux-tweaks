@@ -174,11 +174,7 @@ public final class FluxTweaks implements ClientModInitializer {
       boolean pressed = false;
       while (action.consumeClick()) pressed = true;
       if (f == Feature.BUTTERFLY_KNIFE) {
-        var gate = actionGates.computeIfAbsent(f, ignored -> new ActionGate());
-        String binding = action.saveString();
-        if (!binding.equals(actionBindings.put(f, binding))) gate.block();
-        if (gate.update(config.enabled(f) && !toggled && !editing, action.isDown(), pressed, false, false))
-          ButterflyKnife.inspect();
+        ButterflyKnife.input(!toggled && !editing, action.isDown(), pressed, action.saveString());
         continue;
       }
       if (f == Feature.ZOOM) continue;

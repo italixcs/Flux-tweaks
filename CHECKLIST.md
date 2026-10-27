@@ -1,6 +1,65 @@
 # Implementation and acceptance checklist
 
-Implementation complete; acceptance evidence recorded below. Updated 2026-10-23.
+Implementation complete; acceptance evidence recorded below. Updated 2026-10-25.
+
+## 1.21.11 Loader 0.19.3 match - 0.3.4
+
+- [x] Root compile/runtime dependency and packaged minimum lowered from 0.19.5 to 0.19.3 for the owner's launcher profile; other root pins and the separate 26.2 build remain unchanged.
+- [x] Rebuilt against the older bundled Mixin API; root build and 64 logic checks pass.
+- [x] Full Fabric-alone and Sodium 0.8.14 packaged clients pass; both startup logs confirm actual Loader 0.19.3 and Flux 0.3.4.
+- [x] Existing knife/input/geometry/GUI/gameplay regressions pass, with no extra arm and all Press/Hold/Toggle modes retained.
+- [x] Metadata/bytecode/texture/native/test-exclusion/source/checksum checks complete; installed toolkit unchanged.
+- [ ] Owner's exact normal multiplayer/Lunar/shader modpack remains separately unverified.
+
+See [the mismatch, rebuild and evidence](docs/LOADER-034.md).
+
+## Knife-only spin and Inspect Mode - 0.3.3
+
+- [x] Extra native player hand/sleeve and submission hook removed from both adapters; existing vanilla arm and View Models behavior preserved.
+- [x] Knife motion, spin pivot, catch, size, glint, speed and Sodium mesh correction retained.
+- [x] Inspect Mode: Press once (migration/default), Hold to repeat until release, Toggle to repeat until the next press; keyboard auto-repeat suppressed.
+- [x] Shared fresh-key input policy, transient loop state and cancellation on combat/screens/inspected-item changes; loops never resume automatically after interruption.
+- [x] Both builds and 64 logic checks per JDK pass. Both packaged Sodium suites verify real mode/key/UI behavior, repeated cycles, release/second-press stop, interruption, speed and existing render/gameplay regression checks.
+- [x] Current knife-only and mode captures reviewed; both JARs checked for removal of the extra hand call and unchanged pure motion bytecode; source/JAR/checksum packaging verified.
+- [ ] Fabric-alone and Iris last passed on 0.3.2; the owner's multiplayer/Lunar/shader setup and sustained frame times remain unconfirmed for this update.
+
+See [controls and current evidence](docs/BUTTERFLY-KNIFE-033.md).
+
+## Butterfly hand spin and speed - 0.3.2 (2026-10-25)
+
+- [x] Grip-centered continuous two-turn spin, separate handle rollovers, wrist presentation and catch on both pinned targets.
+- [x] Visible native skin/sleeve; independent item/arm View Models controls; Chams outlines/fill and shield mask retained.
+- [x] Animation Speed 0.25-3x, slider and typed editor, default/migration/validation/persistence; affects opening and inspect timing.
+- [x] 59 logic checks per JDK, grip-anchor matrix for all styles/both hands/scale limits, existing 5,888-vertex Sodium regression retained.
+- [x] All five packaged profiles pass: 1.21.11 Fabric/Sodium and 26.2 Fabric/Sodium/Iris without a shader pack. Actual slider/timing, input/cancellation, handedness, offhand, glint and combined features checked.
+- [x] Actual current-game grip/orbit/combined captures reviewed, source/JAR/checksum package verified, toolkit unchanged.
+- [ ] Owner approval in the normal multiplayer/Lunar/shader setup; sustained frame times and all FPS caps remain unverified.
+
+See [motion, controls and evidence](docs/BUTTERFLY-SPIN-032.md).
+
+## Sodium Butterfly box fix — 0.3.1 (2026-10-25)
+
+- [x] Reproduced the owner's white-box report in the saved 1.21.11 Sodium capture and identified constructor-cached cuboid geometry ignoring edited polygons.
+- [x] Custom `MeshCube.compile` on both targets emits authored vertices/normals/UVs directly; ordinary cuboids retain Sodium acceleration. No global overrides or new dependencies.
+- [x] Added real entity-buffer geometry comparison for idle and hinged poses, requiring active Sodium intrinsics when installed. Before-fix packaged Sodium run fails on vertex 0; fixed runs match all 5,888 vertices per pose.
+- [x] Builds and 57 logic cases per JDK pass; full packaged Fabric/Sodium runs on both targets and 26.2 Iris without shaders pass. Actual corrected Sodium Steel/glint/combined captures visually checked.
+- [x] JAR/source metadata, geometry class, textures, licenses, test exclusion and complete source archive verified; toolkit unchanged.
+- [ ] Owner confirmation in the exact normal modpack; shader-pack and sustained-performance acceptance remain separate.
+
+The 0.3.0 image-change tests were insufficient and its claimed Sodium appearance verification was incorrect. See [corrected diagnosis and evidence](docs/BUTTERFLY-SODIUM-031.md).
+
+## Butterfly Knife and realism refinement — 0.3.0 (2026-10-25)
+
+- [x] Fifteenth module on both targets, initially disabled; six original finishes, Enable/Inspect bindings and three inspect styles/Random.
+- [x] Continuous beveled blade mesh, independently pivoted rounded channelled handles, circular pivot hardware, screws, latch and 256×256 original metal textures.
+- [x] Independent 0.5–2x knife scale composes with existing View Models transforms; optional shimmer preserves enchanted glint.
+- [x] Immutable elapsed-time pose snapshots through the normal model collector; Chams fill/outline, shield mask and the 26.2 Iris operation chain preserved.
+- [x] Inspect cancellation/lifecycle, interrupted equip continuity, Reduced Motion, bounded/migrated/persistent settings; 57 logic cases pass on each JDK.
+- [x] Final packaged clients pass: 1.21.11 Fabric/Sodium; 26.2 Fabric/Sodium/Iris without shader packs. Actual input, rendered scale, finishes/motion/glint, both handedness settings, off-hand knife and combined feature checks; existing regression suites retained.
+- [x] Final JAR/source/checksum inspection; toolkit dry-run has no changes; actual captures reviewed and saved.
+- [ ] Owner gameplay/visual approval in their normal multiplayer/Lunar/shader profile; subjective motion and sustained frame-time checks.
+
+See [controls, implementation and exact evidence](docs/BUTTERFLY-KNIFE.md). Dedicated-server testing and EULA acceptance remain disabled.
 
 ## Icons, module actions and notification HUD — 0.2.4 (2026-10-23)
 

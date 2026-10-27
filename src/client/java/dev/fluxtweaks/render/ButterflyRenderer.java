@@ -42,16 +42,7 @@ public final class ButterflyRenderer implements SpecialModelRenderer<ButterflyKn
   public static void replace(
       ItemStackRenderState state, ItemStack stack, ItemDisplayContext display, ItemOwner owner) {
     var snapshot = ButterflyKnife.snapshot(stack, display, owner);
-    if (snapshot == null || unavailable) return;
-    if (instance == null) {
-      if (TEXTURES.values().stream().anyMatch(
-          id -> Minecraft.getInstance().getResourceManager().getResource(id).isEmpty())) {
-        unavailable = true;
-        FluxTweaks.LOGGER.warn("Butterfly Knife textures unavailable; retaining vanilla swords until resource reload");
-        return;
-      }
-      instance = new ButterflyRenderer();
-    }
+    if (snapshot == null || !ready()) return;
     // The snapshot owns handedness. There is no vanilla display transform on this custom layer.
     state.clear();
     state.setAnimated();
@@ -61,6 +52,40 @@ public final class ButterflyRenderer implements SpecialModelRenderer<ButterflyKn
     layer.setFoilType(stack.hasFoil() || snapshot.glint()
         ? ItemStackRenderState.FoilType.STANDARD : ItemStackRenderState.FoilType.NONE);
     layer.setupSpecialModel(instance, snapshot);
+  }
+
+  private static boolean ready() {
+    if (unavailable) return false;
+    if (instance == null) {
+      if (TEXTURES.values().stream().anyMatch(
+          id -> Minecraft.getInstance().getResourceManager().getResource(id).isEmpty())) {
+        unavailable = true;
+        FluxTweaks.LOGGER.warn("Butterfly Knife textures unavailable; retaining vanilla swords until resource reload");
+        return false;
+      }
+      instance = new ButterflyRenderer();
+    }
+    return true;
+  }
+
+  private static void positionGrip(PoseStack pose, ButterflyKnife.Snapshot snapshot) {
+    var motion = snapshot.pose();
+    float side = snapshot.left() ? -1 : 1;
+    pose.translate((-.08f - motion.lift() * .035f) * side,
+        .08f + motion.lift() / 16f, -.12f - motion.lift() * .018f);
+    pose.mulPose(Axis.YP.rotationDegrees((-18 + motion.yaw()) * side));
+    pose.mulPose(Axis.XP.rotationDegrees(motion.tilt()));
+  }
+
+  /** Keeps the held point fixed as the blade, handle hinges and client scale change. */
+  public static void positionKnife(PoseStack pose, ButterflyKnife.Snapshot snapshot) {
+    positionGrip(pose, snapshot);
+    float side = snapshot.left() ? -1 : 1;
+    pose.mulPose(Axis.ZP.rotationDegrees((24 + snapshot.pose().roll()) * side));
+    float scale = .75f * snapshot.scale();
+    pose.scale(scale, scale, scale);
+    if (snapshot.left()) pose.mulPose(Axis.YP.rotationDegrees(180));
+    pose.translate(-snapshot.pose().gripX() / 16, -snapshot.pose().gripY() / 16, 0);
   }
 
   @Override
@@ -75,20 +100,12 @@ public final class ButterflyRenderer implements SpecialModelRenderer<ButterflyKn
       boolean foil, int outline) {
     if (snapshot == null) return;
     var motion = snapshot.pose();
-    float side = snapshot.left() ? -1 : 1;
     pose.pushPose();
     try {
       // Even NO_TRANSFORM centers item coordinates by -.5; our hinge is authored at zero.
       pose.translate(.5f, .5f, .5f);
-      // Vanilla arm/equip/swing and Flux View Models have already positioned this pose.
-      pose.translate(-.16f * side, .32f + motion.lift() / 16f, -.12f);
-      pose.mulPose(Axis.YP.rotationDegrees((-18 + motion.yaw()) * side));
-      pose.mulPose(Axis.XP.rotationDegrees(motion.tilt()));
-      pose.mulPose(Axis.ZP.rotationDegrees((24 + motion.roll()) * side));
-      float scale = .75f * snapshot.scale();
-      pose.scale(scale, scale, scale);
-      // A 180-degree Y rotation mirrors the silhouette without reversing face winding.
-      if (snapshot.left()) pose.mulPose(Axis.YP.rotationDegrees(180));
+      // Vanilla swing/equip and item View Models surround this grip-local transform.
+      positionKnife(pose, snapshot);
       Identifier texture = TEXTURES.getOrDefault(snapshot.finish(), TEXTURES.get("Steel"));
       collector.order(0).submitModel(model, motion, pose, model.renderType(texture),
           light, overlay, outline, null);

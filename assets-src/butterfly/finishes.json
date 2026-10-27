@@ -1,7 +1,7 @@
 {
-  "atlasSize": 128,
-  "quadrantSize": 64,
-  "regions": {"blade": [0, 0, 64, 64], "handle": [64, 0, 64, 64], "hardware": [0, 64, 64, 64], "accent": [64, 64, 64, 64]},
+  "atlasSize": 256,
+  "quadrantSize": 128,
+  "regions": {"blade": [0, 0, 128, 128], "handle": [128, 0, 128, 128], "hardware": [0, 128, 128, 128], "accent": [128, 128, 128, 128]},
   "finishes": {
     "steel": {"label": "Steel", "pattern": "brushed", "blade": ["#8f9ca7", "#dde5eb", "#bac6ce"], "handle": "#343c46", "hardware": "#c4ccd3", "accent": "#8b9cae"},
     "flux": {"label": "Flux", "pattern": "flow", "blade": ["#7544b9", "#35cbd4", "#b77cf3"], "handle": "#242738", "hardware": "#acb8ce", "accent": "#53dde1"},

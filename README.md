@@ -1,6 +1,6 @@
 # Flux Tweaks
 
-A client-only Minecraft Java mod for Windows x64, with separate **1.21.11** and **26.2** builds. Includes 14 modules: the original nine features, Fullbright, Low Fire, Zoom, Block Overlay and Hit Color, with the redesigned GUI. The owner confirmed the existing features work in multiplayer on 2026-10-21; see [CHECKLIST.md](CHECKLIST.md) and [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md).
+A client-only Minecraft Java mod for Windows x64, with separate **1.21.11** and **26.2** builds. Includes 15 modules: the original nine features, Fullbright, Low Fire, Zoom, Block Overlay, Hit Color and an animated 3D Butterfly Knife. The owner confirmed earlier features work in multiplayer on 2026-10-21; that confirmation does not cover the new knife. See [CHECKLIST.md](CHECKLIST.md) and [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md).
 
 ## Install
 
@@ -8,12 +8,38 @@ Choose the JAR that matches your Minecraft profile. Install only one Flux Tweaks
 
 | Minecraft | Java | Fabric Loader | Fabric API | Optional Sodium |
 | --- | --- | --- | --- | --- |
-| 1.21.11 | 21 | 0.19.5 or newer | 0.141.6+1.21.11 | 0.8.14 for 1.21.11 |
+| 1.21.11 | 21 | 0.19.3 or newer | 0.141.6+1.21.11 | 0.8.14 for 1.21.11 |
 | 26.2 | 25 | 0.19.5 or newer | 0.161.0+26.2 | 0.9.2 for 26.2 |
 
 1. Create the matching Fabric profile and install its Fabric API.
-2. Add `fluxtweaks-0.2.4-mc1.21.11.jar` or `fluxtweaks-0.2.4-mc26.2.jar` to its `mods` folder. The Windows Spotify bridge is bundled.
+2. Add `fluxtweaks-0.3.4-mc1.21.11.jar` or `fluxtweaks-0.3.3-mc26.2.jar` to its `mods` folder. The Windows Spotify bridge is bundled.
 3. Launch a world and press **Right Shift**. Existing settings migrate; new installations start with all modules disabled and feature keys unbound.
+
+## Fabric Loader 0.19.3 compatibility - 0.3.4 for 1.21.11
+
+The 1.21.11 JAR now accepts **Fabric Loader 0.19.3 or newer**, matching the owner's launcher profile. It includes all 0.3.3 features, knife-only animation, speed and Press/Hold/Toggle controls. Minecraft, Java, Fabric API and Sodium versions stay the same. The separate 26.2 build stays on 0.3.3 / Loader 0.19.5+. See [the dependency correction and checks](docs/LOADER-034.md).
+
+## Knife-only spin and playback modes - 0.3.3
+
+Removes the extra player hand/sleeve added in 0.3.2. Only the knife animates: the continuous pen-style spin, handle flips, catch, Animation Speed slider, size, glint and existing View Models / Hand Chams controls remain. **Inspect Mode** offers **Press** (play once, the default), **Hold** (repeat while held), and **Toggle** (repeat until the next press). The hand-spin comparison described the knife's movement; it did not require an attached animated arm. See [the correction and checks](docs/BUTTERFLY-KNIFE-033.md).
+
+## Butterfly hand spin and speed - 0.3.2 (hand removed in 0.3.3)
+
+Butterfly inspections now pivot around the held handle, with a visible player hand and sleeve, a continuous pen-style double roll, independent handle flips, wrist movement and a catch. **Animation Speed** runs from **0.25x to 3x**, default 1x, and changes both opening and inspection timing. Knife Scale keeps the grip anchored; View Models retains separate item/arm controls and Hand Chams captures both. The 0.3.1 Sodium geometry correction remains included. See [motion, controls and verification](docs/BUTTERFLY-SPIN-032.md).
+
+## Sodium knife rendering fix — 0.3.1
+
+Fixes the large white box that replaced the Butterfly Knife with Sodium. Custom mesh surfaces now bypass Sodium's cached cuboid compiler while retaining native lighting, glint, Hand Chams and View Models. No Sodium settings need changing. Both Minecraft builds include the fix. See [root cause, corrected evidence and geometry regression](docs/BUTTERFLY-SODIUM-031.md).
+
+## Butterfly Knife — 0.3.0
+
+- **Right Shift → Butterfly Knife:** enable an original articulated knife for all seven vanilla sword materials in your local first-person view.
+- Curved beveled blade, rounded channelled handles, pivot hardware and latch; opening animation plus Flip, Spin, Flourish and Random inspections.
+- Six finishes: Steel, Flux, Sunset, Violet Marble, Emerald Marble and Obsidian Red. Add moving glint with **Shimmer / Glint**; enchanted swords retain their normal glint when this switch is off.
+- **Knife Scale: 50–200%**, composing with View Models' scale/position/rotation. Hand Chams outlines and fills the moving parts alongside Shield Status.
+- Separate **Enable Key** and **Inspect Key**, initially unbound. Attack, use, item swaps and screens interrupt inspection. Settings persist; active animations reset. Reduced Motion uses a restrained presentation turn.
+
+See [controls, rendering and verification](docs/BUTTERFLY-KNIFE.md). The 1.21.11 build uses 0.3.4 and the 26.2 build uses 0.3.3 and include the previous GUI, notifications and 26.2 Iris fixes. This is cosmetic; sword gameplay, other clients, inventory and third-person appearance remain normal.
 
 ## Module controls and notifications — 0.2.4
 
@@ -23,11 +49,11 @@ Choose the JAR that matches your Minecraft profile. Install only one Flux Tweaks
 - **HUD Editor:** choose Spotify or Notifications, then drag, scroll to scale, or use arrows to nudge. Tab changes selection; Reset/Home resets only the selected HUD. Placement and scale save independently.
 - Saved camera availability survives launch and world changes; actual camera/zoom actions always start inactive. Disabling an active module stops it immediately.
 
-See [controls, migration and acceptance](docs/MODULE-CONTROLS-024.md). Both Minecraft builds are 0.2.4; the earlier 26.2 Iris fix is included.
+See [controls, migration and acceptance](docs/MODULE-CONTROLS-024.md). These controls remain included in 0.3.0.
 
 ## Minecraft 26.2 Iris compatibility patch — 0.2.3
 
-The 26.2 JAR fixes a startup conflict between Flux Hand Chams and Iris's hand renderer, also present in Lunar's bundled Iris stack. The hand hook now preserves the original operation chain. That patch affected only 26.2; both targets now use 0.2.4. See [Lunar documentation, exact crash diagnosis and verification limits](docs/LUNAR-COMPATIBILITY.md).
+The 26.2 JAR fixes a startup conflict between Flux Hand Chams and Iris's hand renderer, also present in Lunar's bundled Iris stack. The hand hook preserves the original operation chain, including in 0.3.0. See [Lunar documentation, exact crash diagnosis and verification limits](docs/LUNAR-COMPATIBILITY.md).
 
 ## Spotify repeat icon in 0.2.2
 
@@ -93,6 +119,7 @@ The world keeps running in Flux screens. Gameplay movement and attack input are 
 
 | Feature | Included controls and behavior |
 | --- | --- |
+| Butterfly Knife | Original first-person articulated sword cosmetic; six finishes, three inspect styles/Random, Enable/Inspect keys, 0.5–2x knife scale and optional forced glint. Composes with View Models and Hand Chams; original sword mechanics and enchantment glint preserved. |
 | Hand Chams | Original first-person hand/item textures, animated white/cyan gradient outline by default, optional fill; two colors, animation speed, glow quality/radius/opacity, fill opacity. Fill starts at zero. |
 | View Models | Independent enable, scale, position XYZ and rotation XYZ for main/off-hand items and main/off arms. Neutral defaults; normal use animations remain. Logical main/off hands follow the player's handedness. |
 | Spotify HUD | Local Spotify desktop session metadata, art, progress and times; available previous/play-pause/next/repeat controls; position/scale. Paused cards stay visible; absent sessions hide the card. |
@@ -126,7 +153,7 @@ For the root **1.21.11** build, use JDK 21 and Visual Studio C++ Build Tools wit
 .\gradlew.bat runProductionClientGameTest -PsodiumAcceptance --console plain
 ```
 
-`build` compiles Java with `--release 21`, builds the x64 native bridge with the static C++ runtime, runs focused JUnit checks, and produces `build/libs/fluxtweaks-0.2.0.jar`. `runProductionClientGameTest` runs the packaged intermediary-mapped mod in an isolated single-player game. Test worlds and screenshots stay under `build/run/productionFabric` or `build/run/productionSodium`. The test mod is separate and is never included in the installation JAR. The normal development game check is also available as `runClientGameTest`.
+`build` compiles Java with `--release 21`, builds the x64 native bridge with the static C++ runtime, runs focused JUnit checks, and produces `build/libs/fluxtweaks-0.3.1.jar`. `runProductionClientGameTest` runs the packaged intermediary-mapped mod in an isolated single-player game. Test worlds and screenshots stay under `build/run/productionFabric` or `build/run/productionSodium`. The test mod is separate and is never included in the installation JAR. The normal development game check is also available as `runClientGameTest`.
 
 For **26.2**, select JDK 25 and run its own wrapper:
 
@@ -137,7 +164,7 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-25.0.4' # or your Java 25 installati
 .\versions\26.2\gradlew.bat -p versions/26.2 runProductionClientGameTest -PsodiumAcceptance --console plain
 ```
 
-This build produces `versions/26.2/build/libs/fluxtweaks-mc26.2-0.2.0.jar` using unobfuscated 26.2 classes. The two build directories, test worlds and screenshots are independent. Do not run the two game clients' acceptance suites simultaneously: they exercise window focus and input. The distributable copies are named with both mod and Minecraft versions as shown in Install above.
+This build produces `versions/26.2/build/libs/fluxtweaks-mc26.2-0.3.1.jar` using unobfuscated 26.2 classes. The two build directories, test worlds and screenshots are independent. Do not run the two game clients' acceptance suites simultaneously: they exercise window focus and input. The distributable copies are named with both mod and Minecraft versions as shown in Install above.
 
 The owner confirmed multiplayer gameplay works in 0.1.2. Automated dedicated-server testing and EULA acceptance remain **disabled**; no multiplayer test server was started. Low Fire and the three 0.1.4 additions require confirmation in the owner's multiplayer profile.
 

@@ -2,6 +2,7 @@ package dev.fluxtweaks.feature;
 
 import dev.fluxtweaks.FluxTweaks;
 import dev.fluxtweaks.config.ButterflyMotion;
+import dev.fluxtweaks.config.ButterflyPlayback;
 import dev.fluxtweaks.config.Feature;
 import java.util.concurrent.ThreadLocalRandom;
 import net.minecraft.client.Minecraft;
@@ -16,6 +17,9 @@ public final class ButterflyKnife {
   private static final Feature FEATURE = Feature.BUTTERFLY_KNIFE;
   private static final ButterflyMotion[] MOTION = {new ButterflyMotion(), new ButterflyMotion()};
   private static final ItemStack[] STACKS = {ItemStack.EMPTY, ItemStack.EMPTY};
+  private static final ButterflyPlayback PLAYBACK = new ButterflyPlayback();
+  private static String inputBinding = "";
+  private static int loopHand = -1;
   private static double frameTime;
   private static boolean reduced;
 
@@ -61,9 +65,10 @@ public final class ButterflyKnife {
       int index = hand == InteractionHand.MAIN_HAND ? 0 : 1;
       ItemStack stack = mc.player.getItemInHand(hand);
       if (STACKS[index] != stack) {
+        if (index == loopHand) cancel();
         STACKS[index] = stack;
         MOTION[index].cancel();
-        if (sword(stack) && !editing() && !busy()) MOTION[index].equip(now(), reduced);
+        if (sword(stack) && !editing() && !busy()) MOTION[index].equip(now(), reduced, FluxTweaks.config.number(FEATURE, "speed"));
       }
     }
     if (editing() || busy()) cancel();
@@ -75,6 +80,26 @@ public final class ButterflyKnife {
     if (!available() || editing() || busy()) cancel();
   }
 
+  /** Consume real key edges once per client tick, outside all rendering passes. */
+  public static void input(boolean allowed, boolean down, boolean pressed, String binding) {
+    String mode = FluxTweaks.config.text(FEATURE, "activation");
+    String identity = binding + ":" + mode;
+    if (!identity.equals(inputBinding)) {
+      cancel();
+      inputBinding = identity;
+    }
+    var mc = Minecraft.getInstance();
+    boolean eligible = allowed && available() && !editing() && !busy()
+        && (sword(mc.player.getMainHandItem()) || sword(mc.player.getOffhandItem()));
+    boolean wasRepeating = PLAYBACK.repeating();
+    boolean wanted = PLAYBACK.update(mode, eligible, down, pressed);
+    if (!eligible || wasRepeating && !PLAYBACK.repeating()) {
+      cancel();
+      return;
+    }
+    if (wanted && !inspecting()) inspect();
+  }
+
   public static void inspect() {
     if (!available() || editing() || busy()) return;
     var mc = Minecraft.getInstance();
@@ -82,7 +107,12 @@ public final class ButterflyKnife {
     if (index < 0) return;
     String style = FluxTweaks.config.text(FEATURE, "inspect");
     if (style.equals("Random")) style = new String[] {"Flip", "Spin", "Flourish"}[ThreadLocalRandom.current().nextInt(3)];
-    MOTION[index].inspect(style, now(), FluxTweaks.config.theme.reducedMotion);
+    if (PLAYBACK.repeating()) loopHand = index;
+    MOTION[index].inspect(style, now(), FluxTweaks.config.theme.reducedMotion, FluxTweaks.config.number(FEATURE, "speed"));
+  }
+
+  public static boolean repeating() {
+    return PLAYBACK.repeating();
   }
 
   public static boolean inspecting() {
@@ -90,6 +120,8 @@ public final class ButterflyKnife {
   }
 
   public static void cancel() {
+    PLAYBACK.cancel();
+    loopHand = -1;
     for (var motion : MOTION) motion.cancel();
   }
 

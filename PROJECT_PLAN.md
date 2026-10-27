@@ -103,3 +103,21 @@ Owner approved module icons and separate Enable/Action bindings, then requested 
 ## Approved Butterfly Knife addition — 0.3.0 (2026-10-25)
 
 After research with three subagents, the owner approved the proposed native animated knife and selected an art direction between realistic metal and Minecraft geometry. They additionally requested shine/glint, independent size control, and compatibility with View Models and Hand Chams. Build the local first-person vanilla-sword cosmetic on both pinned targets, with separate blade/handle articulation, opening plus three inspect styles/Random, six original finishes, Enable and Inspect keybinds, 50–200% scale, and optional forced glint while retaining enchantment glint. Reuse the existing native GUI/configuration/input architecture and preserve all fourteen prior modules, gameplay semantics and the 26.2 Iris operation chain. No new runtime library or copied third-party assets are needed. See [feature contract and evidence](docs/BUTTERFLY-KNIFE.md); [research](docs/BUTTERFLY-KNIFE-RESEARCH.md) remains the historical proposal.
+
+## Requested Sodium box correction — 0.3.1 (2026-10-25)
+
+The owner reported the knife appearing as a box on 1.21.11 with Sodium. Preserve the authored mesh and all feature behavior, fix the custom-cube compilation path on both targets, and test the actual emitted vertex positions with Sodium intrinsics active. Do not disable Sodium's global optimizations or ask the owner to change rendering settings. Previous image-difference assertions did not establish the correct silhouette; see [the corrected evidence](docs/BUTTERFLY-SODIUM-031.md).
+
+## Requested hand spin and speed control - 0.3.2 (2026-10-25)
+
+The owner requested a pen-style butterfly roll around/in the hand, inspired by CS:GO, then added a speed slider. Replace the hinge-centered stop/start spin with continuous grip-centered motion, visible native player hand/sleeve, independent safe/free handle choreography, wrist lift and catch. Add Animation Speed 0.25-3x through the existing settings controls and persistence. Preserve reduced motion, interruption/input behavior, scale anchored at the grip, separate arm/item View Models, the Chams shield mask, both pinned targets and the 0.3.1 Sodium mesh fix. See [implementation and evidence](docs/BUTTERFLY-SPIN-032.md).
+
+## Owner correction: knife-only spin - 0.3.3
+
+The hand-spin comparison was an explanation of the desired knife motion, not a request for an attached moving player hand. Remove the added hand/sleeve renderer and submission hook on both targets. Keep the knife choreography, spin pivot, speed slider, scale, glint, Sodium correction and existing vanilla arm/View Models behavior. See [the correction](docs/BUTTERFLY-KNIFE-033.md).
+
+The owner also requested three inspect input modes: Press once, Hold to repeat until release, and Toggle to repeat until the next press. Add the Inspect Mode choice with Press as the migration/default behavior; preserve fresh-key gating and existing interruption rules, and never serialize active playback.
+
+## Owner-requested 1.21.11 Loader match - 0.3.4
+
+The owner supplied a Fabric Loader incompatibility dialog: their 1.21.11 profile has Loader 0.19.3 while Flux 0.3.3 declares >=0.19.5. Support Loader 0.19.3 in the root build and metadata, retaining all 0.3.3 behavior and other version pins. Run the packaged client with the actual older Loader, including Sodium. The 26.2 target is outside this correction and retains its existing version/pin.

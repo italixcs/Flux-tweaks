@@ -150,6 +150,8 @@ public final class Settings {
         List.of(
             choice("finish", "Finish", "Steel", "Steel", "Flux", "Sunset", "Violet Marble", "Emerald Marble", "Obsidian Red"),
             choice("inspect", "Inspect Style", "Flourish", "Flip", "Spin", "Flourish", "Random"),
+            choice("activation", "Inspect Mode", "Press", "Press", "Hold", "Toggle"),
+            number("speed", "Animation Speed", 1, .25, 3, .05, "x"),
             number("scale", "Knife Scale", 1, .5, 2, .01, "x"),
             bool("glint", "Shimmer / Glint", true)));
   }

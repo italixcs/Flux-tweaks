@@ -23,6 +23,7 @@ public final class FluxClientTest implements FabricClientGameTest {
     context.getInput().resizeWindow(1280, 800);
     context.runOnClient(
         mc -> {
+          ButterflyGeometryAcceptance.run();
           FluxTweaks.config = new FluxConfig();
           FluxTweaks.message = "";
           FluxTweaks.notifications.clear();

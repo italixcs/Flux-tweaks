@@ -17,6 +17,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
@@ -41,6 +42,8 @@ final class ButterflyAcceptance {
     String enableKey = ctx.computeOnClient(mc -> FluxTweaks.enableKeys.get(KNIFE).saveString());
     String actionKey = ctx.computeOnClient(mc -> FluxTweaks.keys.get(KNIFE).saveString());
     try {
+      world.getServer().runCommand("time set 6000");
+      world.getServer().runCommand("weather clear");
       world.getServer().runCommand("fill -16 64 8 16 85 8 minecraft:white_concrete");
       world.getServer().runCommand("tp @a 0.5 65 0.5 0 0");
       ctx.runOnClient(
@@ -89,6 +92,7 @@ final class ButterflyAcceptance {
         ctx.waitFor(mc -> !ButterflyKnife.inspecting());
       }
 
+      playbackModes(ctx);
       inspect(ctx);
       ctx.getInput().holdKeyFor(options -> options.keyAttack, 2);
       ctx.runOnClient(mc -> check(!ButterflyKnife.inspecting(), "Attack did not interrupt inspect"));
@@ -106,6 +110,16 @@ final class ButterflyAcceptance {
       ctx.waitTicks(3);
       ctx.runOnClient(mc -> check(!ButterflyKnife.inspecting(), "Opening settings did not cancel inspect"));
       ctx.takeScreenshot("flux-butterfly-settings");
+      GuiAcceptance.clickControl(ctx, "Inspect Mode choices");
+      ctx.runOnClient(mc -> {
+        mc.screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_DOWN, 0, 0));
+        mc.screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_DOWN, 0, 0));
+        mc.screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0));
+        check(FluxTweaks.config.text(KNIFE, "activation").equals("Toggle"), "Inspect Mode choice did not select Toggle");
+      });
+      ctx.waitTicks(4);
+      ctx.takeScreenshot("flux-butterfly-inspect-mode");
+      ctx.runOnClient(mc -> set("activation", "Press"));
       ctx.runOnClient(
           mc -> {
             float scale = Ui.scaleFor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight());
@@ -114,22 +128,54 @@ final class ButterflyAcceptance {
           });
       ctx.waitTicks(6);
       ctx.takeScreenshot("flux-butterfly-settings-scale-glint");
+      GuiAcceptance.clickControlAt(ctx, "Animation Speed slider", .75);
+      ctx.runOnClient(mc -> check(FluxTweaks.config.number(KNIFE, "speed") > 2,
+          "Animation Speed slider did not update its setting"));
+      GuiAcceptance.clickControl(ctx, "Type Animation Speed");
+      GuiAcceptance.type(ctx, "0.25");
+      ctx.runOnClient(mc -> check(FluxTweaks.config.number(KNIFE, "speed") == .25,
+          "Typed animation speed was not applied"));
+      ctx.takeScreenshot("flux-butterfly-settings-speed");
       ctx.setScreen(() -> null);
       ctx.waitTicks(3);
 
+      ctx.runOnClient(mc -> set("inspect", "Spin"));
+      inspect(ctx);
+      ctx.waitTicks(25);
+      ctx.runOnClient(mc -> check(ButterflyKnife.inspecting(), "0.25x inspect ended at normal speed"));
+      for (int frame = 0; frame < 36; frame++) {
+        ctx.waitTicks(3);
+        ctx.takeScreenshot("flux-butterfly-orbit-" + String.format(Locale.ROOT, "%02d", frame));
+      }
+      ctx.waitFor(mc -> !ButterflyKnife.inspecting());
+      ctx.runOnClient(mc -> set("speed", 3));
+      inspect(ctx);
+      ctx.waitTicks(25);
+      ctx.runOnClient(mc -> check(!ButterflyKnife.inspecting(), "3x inspect did not finish faster"));
+      ctx.runOnClient(mc -> set("speed", 1));
+
+      Path smallScale = null, largeScale = null;
       for (double scale : new double[] {.5, 2}) {
         ctx.runOnClient(mc -> set("scale", scale));
         ctx.waitTicks(3);
-        ctx.takeScreenshot("flux-butterfly-scale-" + (scale == .5 ? "minimum" : "maximum"));
+        Path capture = ctx.takeScreenshot("flux-butterfly-scale-" + (scale == .5 ? "minimum" : "maximum"));
+        if (scale == .5) smallScale = capture;
+        else largeScale = capture;
       }
+      check(coloredPixels(largeScale) > coloredPixels(smallScale) * 2,
+          "Knife Scale did not enlarge the rendered geometry");
       ctx.runOnClient(
           mc -> {
             set("scale", 1);
             set("inspect", "Random");
+            set("glint", true);
             FluxTweaks.setEnabled(Feature.VIEW_MODELS, true);
             FluxTweaks.setEnabled(Feature.HAND_CHAMS, true);
             FluxTweaks.setEnabled(Feature.SHIELD_STATUS, true);
+            FluxTweaks.config.set(Feature.HAND_CHAMS, "fill", new JsonPrimitive(.18));
             FluxTweaks.config.set(Feature.VIEW_MODELS, "mainItem.posX", new JsonPrimitive(.08));
+            FluxTweaks.config.set(Feature.VIEW_MODELS, "mainItem.scale", new JsonPrimitive(.85));
+            FluxTweaks.config.set(Feature.VIEW_MODELS, "offItem.scale", new JsonPrimitive(1.1));
             FluxTweaks.config.set(Feature.VIEW_MODELS, "offItem.rotZ", new JsonPrimitive(8));
           });
       for (HumanoidArm mainArm : HumanoidArm.values()) {
@@ -156,6 +202,7 @@ final class ButterflyAcceptance {
             FluxTweaks.setEnabled(Feature.VIEW_MODELS, false);
             FluxTweaks.setEnabled(Feature.HAND_CHAMS, false);
             FluxTweaks.setEnabled(Feature.SHIELD_STATUS, false);
+            set("glint", false);
             mc.options.mainHand().set(HumanoidArm.RIGHT);
             mc.options.broadcastOptions();
           });
@@ -210,7 +257,7 @@ final class ButterflyAcceptance {
       ctx.runOnClient(mc -> check(!ButterflyKnife.inspecting(), "Non-sword accepted inspect"));
       ctx.takeScreenshot("flux-butterfly-non-sword");
       FluxTweaks.LOGGER.info(
-          "Butterfly checks passed: enable/inspect input, six finishes, motion/cancellation,"
+          "Butterfly checks passed: enable/inspect input, six finishes, grip orbit, speed slider/timing, motion/cancellation,"
               + " scale captures, handedness/offhand, combined modules, glint and unchanged server sword");
     } finally {
       ctx.getInput().releaseKey(ENABLE);
@@ -235,6 +282,62 @@ final class ButterflyAcceptance {
       world.getServer().runCommand("fill -16 64 8 16 85 8 minecraft:air");
       equip(ctx, world, Items.NETHERITE_SWORD, Items.SHIELD, false);
     }
+  }
+
+  private static void playbackModes(ClientGameTestContext ctx) {
+    ctx.runOnClient(mc -> {
+      set("inspect", "Spin");
+      set("speed", 3);
+      set("activation", "Hold");
+    });
+    ctx.waitTicks(3);
+    ctx.getInput().holdKey(INSPECT);
+    ctx.waitTicks(40);
+    ctx.waitFor(mc -> ButterflyKnife.inspecting());
+    ctx.runOnClient(mc -> check(ButterflyKnife.repeating(), "Hold did not repeat across completed cycles"));
+    ctx.takeScreenshot("flux-butterfly-hold-loop");
+    ctx.getInput().releaseKey(INSPECT);
+    ctx.waitTicks(2);
+    ctx.runOnClient(mc -> check(!ButterflyKnife.repeating() && !ButterflyKnife.inspecting(), "Hold release did not stop"));
+
+    ctx.runOnClient(mc -> set("activation", "Toggle"));
+    ctx.waitTicks(3);
+    inspect(ctx);
+    ctx.waitTicks(40);
+    ctx.waitFor(mc -> ButterflyKnife.inspecting());
+    ctx.runOnClient(mc -> check(ButterflyKnife.repeating(), "Toggle did not repeat after key release"));
+    ctx.takeScreenshot("flux-butterfly-toggle-loop");
+    ctx.getInput().pressKey(INSPECT);
+    ctx.waitTicks(2);
+    ctx.runOnClient(mc -> check(!ButterflyKnife.repeating() && !ButterflyKnife.inspecting(), "Second toggle press did not stop"));
+
+    ctx.runOnClient(mc -> set("activation", "Hold"));
+    ctx.waitTicks(3);
+    ctx.getInput().holdKey(INSPECT);
+    ctx.waitTicks(3);
+    ctx.runOnClient(mc -> check(ButterflyKnife.repeating(), "Hold did not restart on a fresh press"));
+    ctx.getInput().holdKeyFor(options -> options.keyAttack, 2);
+    ctx.waitTicks(16);
+    ctx.runOnClient(mc -> check(!ButterflyKnife.repeating() && !ButterflyKnife.inspecting(), "Interrupted held key restarted without release"));
+    ctx.getInput().releaseKey(INSPECT);
+    ctx.waitTicks(2);
+
+    ctx.runOnClient(mc -> set("activation", "Toggle"));
+    ctx.waitTicks(3);
+    inspect(ctx);
+    ctx.runOnClient(mc -> mc.setScreen(new FluxScreen()));
+    ctx.waitTicks(2);
+    ctx.runOnClient(mc -> check(!ButterflyKnife.repeating(), "Screen did not cancel toggle loop"));
+    ctx.setScreen(() -> null);
+    ctx.waitTicks(3);
+    ctx.runOnClient(mc -> check(!ButterflyKnife.repeating() && !ButterflyKnife.inspecting(), "Toggle loop resumed after screen closed"));
+    ctx.runOnClient(mc -> {
+      set("activation", "Press");
+      set("inspect", "Flourish");
+      set("speed", 1);
+    });
+    ctx.waitTicks(3);
+    FluxTweaks.LOGGER.info("Butterfly playback modes passed: Press/Hold/Toggle, repeat, release, toggle stop and cancellation");
   }
 
   private static void inspect(ClientGameTestContext ctx) {
@@ -292,6 +395,23 @@ final class ButterflyAcceptance {
               + Math.abs((old >> 8 & 255) - (now >> 8 & 255))
               + Math.abs((old & 255) - (now & 255));
           if (delta > 35) count++;
+        }
+      return count;
+    } catch (IOException ex) {
+      throw new AssertionError(ex);
+    }
+  }
+
+  private static int coloredPixels(Path image) {
+    try {
+      var capture = ImageIO.read(image.toFile());
+      int count = 0;
+      for (int y = capture.getHeight() / 4; y < capture.getHeight() - 70; y++)
+        for (int x = capture.getWidth() / 2; x < capture.getWidth(); x++) {
+          int pixel = capture.getRGB(x, y);
+          int red = pixel >> 16 & 255, green = pixel >> 8 & 255, blue = pixel & 255;
+          // Count the blue/cyan Flux metal, excluding the shield and neutral background.
+          if (blue - red > 35) count++;
         }
       return count;
     } catch (IOException ex) {

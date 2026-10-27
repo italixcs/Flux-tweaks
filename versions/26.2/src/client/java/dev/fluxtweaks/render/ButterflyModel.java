@@ -1,10 +1,13 @@
 package dev.fluxtweaks.render;
 
 import dev.fluxtweaks.config.ButterflyMotion;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.client.model.Model;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
@@ -20,10 +23,34 @@ import org.joml.Vector3f;
 public final class ButterflyModel extends Model<ButterflyMotion.Pose> {
   private final ModelPart first, second;
 
+  /** Custom polygons must not enter Sodium's constructor-cached cuboid compiler. */
+  private static final class MeshCube extends ModelPart.Cube {
+    private MeshCube(int u, int v, float x, float y, float z, float width, float height,
+        float depth, float growX, float growY, float growZ, boolean mirror,
+        float textureWidth, float textureHeight, Set<Direction> faces) {
+      super(u, v, x, y, z, width, height, depth, growX, growY, growZ, mirror,
+          textureWidth, textureHeight, faces);
+    }
+
+    @Override
+    public void compile(PoseStack.Pose pose, VertexConsumer buffer, int light, int overlay, int color) {
+      var scratch = new Vector3f();
+      for (var polygon : polygons) {
+        pose.transformNormal(polygon.normal(), scratch);
+        float nx = scratch.x, ny = scratch.y, nz = scratch.z;
+        for (var vertex : polygon.vertices()) {
+          pose.pose().transformPosition(vertex.worldX(), vertex.worldY(), vertex.worldZ(), scratch);
+          buffer.addVertex(scratch.x, scratch.y, scratch.z, color, vertex.u(), vertex.v(),
+              overlay, light, nx, ny, nz);
+        }
+      }
+    }
+  }
+
   public ButterflyModel() {
     super(createRoot(), RenderTypes::entitySolid);
-    first = root().getChild("hardware").getChild("handle_a");
-    second = root().getChild("hardware").getChild("handle_b");
+    first = root().getChild("handle_a");
+    second = root().getChild("handle_b");
   }
 
   @Override
@@ -38,14 +65,9 @@ public final class ButterflyModel extends Model<ButterflyMotion.Pose> {
     var root = mesh.getRoot();
     root.addOrReplaceChild("tang", CubeListBuilder.create().texOffs(4, 68)
         .addBox(-.75f, -.65f, -.30f, 1.5f, 1.55f, .6f), PartPose.ZERO);
-    handle(root, "handle_a", -.52f, -1);
-    handle(root, "handle_b", .52f, 1);
     // Paired pivot bosses remain fixed with the blade tang.
     for (int side = -1; side <= 1; side += 2) {
       for (int face = -1; face <= 1; face += 2) {
-        root.addOrReplaceChild("pivot_" + side + "_" + face,
-            CubeListBuilder.create().texOffs(20, 70).addBox(-.34f, -.34f, -.08f, .68f, .68f, .16f),
-            PartPose.offsetAndRotation(side * .52f, 0, face * .57f, 0, 0, (float) Math.PI / 4));
         root.addOrReplaceChild("screw_" + side + "_" + face,
             CubeListBuilder.create().texOffs(72, 72).addBox(-.15f, -.045f, -.04f, .3f, .09f, .08f),
             PartPose.offset(side * .52f, 0, face * .69f));
@@ -56,7 +78,9 @@ public final class ButterflyModel extends Model<ButterflyMotion.Pose> {
 
   private static ModelPart createRoot() {
     return new ModelPart(List.of(), Map.of(
-        "hardware", createLayer().bakeRoot(), "blade", new ModelPart(bladeMesh(), Map.of())));
+        "hardware", createLayer().bakeRoot(), "blade", new ModelPart(bladeMesh(), Map.of()),
+        "handle_a", roundedHandle(-.52f, -1), "handle_b", roundedHandle(.52f, 1),
+        "pivot_rings", new ModelPart(pivotMesh(), Map.of())));
   }
 
   /** Joined surface rings retain native lighting/glint while avoiding stacked-cube stair steps. */
@@ -65,7 +89,7 @@ public final class ButterflyModel extends Model<ButterflyMotion.Pose> {
     for (int segment = 0; segment < 32; segment++) {
       var lower = ring(segment / 32f);
       var upper = ring((segment + 1) / 32f);
-      var cube = new ModelPart.Cube(0, 0, -.7f, .65f, -.2f, 2.8f, 10f, .4f,
+      var cube = new MeshCube(0, 0, -.7f, .65f, -.2f, 2.8f, 10f, .4f,
           0, 0, 0, false, 128, 128, EnumSet.allOf(Direction.class));
       for (int edge = 0; edge < 6; edge++) {
         int next = (edge + 1) % 6;
@@ -76,7 +100,7 @@ public final class ButterflyModel extends Model<ButterflyMotion.Pose> {
     }
     var bottom = ring(0);
     var top = ring(1);
-    var caps = new ModelPart.Cube(0, 0, -.7f, .65f, -.2f, 2.8f, 10f, .4f,
+    var caps = new MeshCube(0, 0, -.7f, .65f, -.2f, 2.8f, 10f, .4f,
         0, 0, 0, false, 128, 128, EnumSet.of(Direction.UP, Direction.DOWN, Direction.NORTH, Direction.SOUTH));
     caps.polygons[0] = polygon(bottom[0], bottom[1], bottom[2], bottom[3]);
     caps.polygons[1] = polygon(bottom[0], bottom[3], bottom[4], bottom[5]);
@@ -101,8 +125,8 @@ public final class ButterflyModel extends Model<ButterflyMotion.Pose> {
 
   private static ModelPart.Vertex[] ring(float t) {
     float y = .65f + 10f * t;
-    float spine = -.62f + 1.68f * t * t * t;
-    float width = (.94f + .62f * (float) Math.sin(Math.PI * t)) * (1 - .995f * t * t * t);
+    float spine = -.65f - .25f * (float) Math.sin(Math.PI * t) + 1.72f * t * t * t;
+    float width = (1.12f + .72f * (float) Math.sin(Math.PI * t)) * (1 - .995f * t * t * t);
     float thick = .19f * (1 - .96f * t * t * t);
     float[] across = {0, .10f, .67f, 1, .67f, .10f};
     float[] depth = {0, -thick, -thick, 0, thick, thick};
@@ -114,16 +138,12 @@ public final class ButterflyModel extends Model<ButterflyMotion.Pose> {
     return vertices;
   }
 
-  private static void handle(PartDefinition root, String name, float hinge, int side) {
-    var handle = root.addOrReplaceChild(name, CubeListBuilder.create(), PartPose.offset(hinge, 0, 0));
+  private static ModelPart roundedHandle(float hinge, int side) {
+    var detailMesh = new MeshDefinition();
+    var handle = detailMesh.getRoot();
     for (int i = 0; i < 8; i++) {
       float y = -i * 1.12f - .25f;
       float curve = side * (.12f + .48f * (float) Math.sin(i / 7f * Math.PI));
-      var rails = CubeListBuilder.create().texOffs(66 + i % 4 * 10, 4 + i / 4 * 16)
-          .addBox(curve - .32f, y - 1.1f, -.51f, .64f, 1.15f, .25f)
-          .texOffs(66 + i % 4 * 10, 4 + i / 4 * 16)
-          .addBox(curve - .32f, y - 1.1f, .26f, .64f, 1.15f, .25f);
-      handle.addOrReplaceChild("rail_" + i, rails, PartPose.ZERO);
       if (i % 2 == 0 || i == 7) {
         handle.addOrReplaceChild("spacer_" + i,
             CubeListBuilder.create().texOffs(8 + i * 4, 80)
@@ -142,5 +162,84 @@ public final class ButterflyModel extends Model<ButterflyMotion.Pose> {
       handle.addOrReplaceChild("latch", CubeListBuilder.create().texOffs(30, 90)
           .addBox(-1.1f, -9.65f, -.12f, 1.5f, .22f, .24f), PartPose.ZERO);
     }
+    var surfaces = new ArrayList<ModelPart.Polygon>();
+    for (int face : new int[] {-1, 1}) {
+      for (int segment = 0; segment < 24; segment++) {
+        var lower = handleRing(segment / 24f, side, face);
+        var upper = handleRing((segment + 1) / 24f, side, face);
+        for (int edge = 0; edge < 8; edge++) {
+          int next = (edge + 1) % 8;
+          surfaces.add(polygon(lower[edge], lower[next], upper[next], upper[edge]));
+        }
+      }
+      cap(surfaces, handleRing(0, side, face), true);
+      cap(surfaces, handleRing(1, side, face), false);
+    }
+    var part = new ModelPart(cubes(surfaces), Map.of("details", LayerDefinition.create(detailMesh, 128, 128).bakeRoot()));
+    var pivot = PartPose.offset(hinge, 0, 0);
+    part.setInitialPose(pivot);
+    part.loadPose(pivot);
+    return part;
+  }
+
+  private static ModelPart.Vertex[] handleRing(float t, int side, int face) {
+    float curve = side * (.12f + .48f * (float) Math.sin(Math.PI * t));
+    float roundedEnd = .72f + .28f * (float) Math.pow(Math.sin(Math.PI * t), .35);
+    float[] x = {-.24f, .24f, .34f, .34f, .24f, -.24f, -.34f, -.34f};
+    float[] z = {-.14f, -.14f, -.08f, .08f, .14f, .14f, .08f, -.08f};
+    var ring = new ModelPart.Vertex[8];
+    for (int i = 0; i < 8; i++) ring[i] = new ModelPart.Vertex(
+        curve + x[i] * roundedEnd, -.28f - 9.1f * t, face * .39f + z[i],
+        (68 + (x[i] + .34f) / .68f * 54) / 128f, (3 + 57 * t) / 128f);
+    return ring;
+  }
+
+  private static void cap(List<ModelPart.Polygon> faces, ModelPart.Vertex[] ring, boolean reverse) {
+    var center = new Vector3f();
+    for (var vertex : ring) center.add(point(vertex));
+    center.div(ring.length);
+    var middle = new ModelPart.Vertex(center.x, center.y, center.z, ring[0].u(), ring[0].v());
+    for (int i = 0; i < ring.length; i++) {
+      var a = ring[i];
+      var b = ring[(i + 1) % ring.length];
+      faces.add(reverse ? polygon(a, middle, b, b) : polygon(a, b, middle, middle));
+    }
+  }
+
+  private static List<ModelPart.Cube> pivotMesh() {
+    var faces = new ArrayList<ModelPart.Polygon>();
+    for (int side : new int[] {-1, 1}) for (int face : new int[] {-1, 1}) {
+      var front = new ModelPart.Vertex[16];
+      var back = new ModelPart.Vertex[16];
+      for (int i = 0; i < 16; i++) {
+        double angle = i * Math.PI / 8;
+        float x = (float) Math.cos(angle), y = (float) Math.sin(angle);
+        front[i] = new ModelPart.Vertex(side * .52f + x * .37f, y * .37f, face * .66f,
+            (23 + x * 12) / 128f, (89 + y * 12) / 128f);
+        back[i] = new ModelPart.Vertex(side * .52f + x * .37f, y * .37f, face * .52f,
+            (23 + x * 12) / 128f, (89 + y * 12) / 128f);
+      }
+      for (int i = 0; i < 16; i++) {
+        int next = (i + 1) % 16;
+        faces.add(face > 0 ? polygon(front[i], back[i], back[next], front[next])
+            : polygon(front[next], back[next], back[i], front[i]));
+      }
+      cap(faces, front, face < 0);
+      cap(faces, back, face > 0);
+    }
+    return cubes(faces);
+  }
+
+  private static List<ModelPart.Cube> cubes(List<ModelPart.Polygon> surfaces) {
+    var result = new ArrayList<ModelPart.Cube>();
+    for (int index = 0; index < surfaces.size(); index += 6) {
+      int count = Math.min(6, surfaces.size() - index);
+      var directions = EnumSet.noneOf(Direction.class);
+      for (int i = 0; i < count; i++) directions.add(Direction.values()[i]);
+      var cube = new MeshCube(0, 0, -3, -10, -1, 6, 22, 2, 0, 0, 0, false, 128, 128, directions);
+      for (int i = 0; i < count; i++) cube.polygons[i] = surfaces.get(index + i);
+      result.add(cube);
+    }
+    return result;
   }
 }

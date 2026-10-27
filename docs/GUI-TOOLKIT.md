@@ -12,7 +12,7 @@ The installation used the upstream existing-project installer, without `--starte
 
 ## Project compatibility and GUI workflow
 
-Flux's authoritative stack remains **Minecraft 1.21.11 / Fabric / Java 21**, official Mojang mappings, Loader 0.19.5, Fabric API 0.141.6+1.21.11, Loom 1.15.5 and Gradle 9.2.1. Sodium coverage uses 0.8.14.
+Flux's authoritative stack remains **Minecraft 1.21.11 / Fabric / Java 21**, official Mojang mappings, Loader 0.19.3 (owner-requested compatibility correction), Fabric API 0.141.6+1.21.11, Loom 1.15.5 and Gradle 9.2.1. Sodium coverage uses 0.8.14.
 
 For GUI work, read the installed skill and relevant design, implementation, motion and review guides. Reuse Flux's `Ui`, `SmoothGui`, `FluxScreen`, `HudEditorScreen`, Lato font and configurable theme. Use Ponytail and version-specific Context7 documentation as already requested. Keep adaptations in project-owned source; leave the installed package intact.
 

@@ -1,5 +1,7 @@
 # Butterfly Knife — research and proposed implementation
 
+Historical research: implementation followed on 2026-10-25. See [the implemented feature, controls and verification](BUTTERFLY-KNIFE.md) for current behavior and the later realism refinements.
+
 Research date: 2026-10-24. Status: research only; no feature implemented or runtime compatibility claimed. Three subagents investigated Counter-Strike references, the Flux integration, and tooling. Checkout inspected: root project on `main`, existing version 0.2.4; pre-existing untracked `bin/` was left untouched.
 
 The user confirmed the visual direction: **a middle ground between the realistic metal reference and the Minecraft-style Actual Knives reference**. The implementation scope below is proposed, not an amendment to the approved feature plan.

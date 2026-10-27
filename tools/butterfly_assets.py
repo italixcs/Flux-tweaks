@@ -59,7 +59,9 @@ def material_pixel(finish, region, x, y, noise):
         color = blade_color(finish["pattern"], colors, x, y)
         grain = math.sin(y * 850 + math.sin(x * 8)) * 2.4 + noise * 2.3
         # A soft ground-metal sheen; native lighting and enchantment glint remain dynamic.
-        light = 1 + .065 * math.cos(x * 9 - .7)
+        light = (.80 + .10 * math.cos(x * 8 - .7)
+                 + .30 * math.exp(-((x - .72) / .075) ** 2)
+                 + .16 * math.exp(-((x - .12) / .045) ** 2))
     elif region == "handle":
         color = rgb(finish["handle"])
         # Restrained machined longitudinal grain, without pretending to draw screw geometry.
@@ -114,7 +116,7 @@ def generate():
         sheet.paste(image.resize((256, 256), Image.Resampling.NEAREST), (x, y + 32))
         draw.text((x, y + 294), "Blade / Handle     Hardware / Accent", fill="#aab2c2", font=small)
     sheet.save(SOURCE / "finish-contact-sheet.png", optimize=True)
-    print(f"Generated and checked {len(sheets)} original 128x128 opaque finish atlases.")
+    print(f"Generated and checked {len(sheets)} original {SIZE}x{SIZE} opaque finish atlases.")
 
 
 if __name__ == "__main__":
